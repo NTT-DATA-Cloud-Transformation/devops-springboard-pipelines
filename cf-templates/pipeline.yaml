@@ -1,0 +1,92 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for microservies being deployed'
+Parameters:
+  GitHubUser:
+    Description: 'GitHub UserName'
+    Type: 'String'
+  GitRepo:
+    Description: 'URL for Git repo'
+    Type: 'String'
+  GitBranch:
+    Description: 'Branch being deployed'
+    Type: 'String'
+  GitHubToken:
+    Description: 'OAuth Token for repo access'
+    Type: 'String'
+  ServiceName:
+    Description: 'Path on which Microservice is deployed'
+    Type: 'String'
+    AllowedPattern: '^\w*$'
+  ArtifactBucket:
+    Description: 'Path on which Microservice is deployed'
+    Type: 'String'
+  MicroservicesTemplate:
+    Description: 'Path on which CloudFormation templates are uploaded'
+    Type: 'String'
+  CodePipelineRoleArn:
+    Description: 'IAM role used by the Code Pipeline'
+    Type: 'String'
+Resources:
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Join[ '-', [!Ref ServiceName, 'Pipeline']
+      ArtifactStore:
+        Location: !Ref ArtifactBucket
+        Type: 'S3'
+      RoleArn: !Ref CodePipelineRoleArn
+      Stages:
+        -
+          Name: Source
+          Actions:
+            -
+              Name: AppSource
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+                OutputArtifacts: [Name: 'AppSourceArtifact']
+                RunOrder: 10
+                Configuration:
+                  Owner: !Ref GitHubUser
+                  Repo: !Ref GitRepo
+                  Branch: !Ref GitBranch
+                  OAuthToken: !Ref GitHubToken
+            -
+              Name: ContainerBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+                InputArtifacts: [Name: 'AppSourceArtifact']
+                OutputArtifacts: [Name: 'ContainerImageArtifact']
+                RunOrder: 20
+                Configuration:
+                  ProjectName: 'build-docker-image'
+            -
+              Name: ContainerTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+                InputArtifacts: [Name: 'ContainerImageArtifact']
+                RunOrder: 30
+                Configuration:
+                  ProjectName: 'test-docker-image'
+            -
+              Name: ContainerDeploy
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+                InputArtifacts: [Name: 'ContainerImageArtifact']
+                RunOrder: 40
+                Configuration:
+                  ActionMode: CREATE_UPDATE
+                  StackName: !Join['-', [!Ref ServiceName, 'service']]
+                  TemplatePath: !Ref MicroservicesTemplate
