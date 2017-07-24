@@ -1,1 +1,19 @@
-# CloudFormation template for microservies being deployed
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for microservies being deployed'
+Parameters:
+  ContainerImageId:
+    Description: 'Iamge ID for the container'
+    Type: 'String'
+  ServicePath:
+    Description: 'Path on which Microservice is deployed'
+    Type: 'String'
+    AllowedPattern: '^[a-z0-9]*$'
+  ContainerTag:
+    Description: 'Container tag being deployed'
+    Type: 'String'
+Resources:
+  # TODO:
+  # 1. Create task
+  # 2. Create scaling of tasks
+  # 3. Create ALB front-end
