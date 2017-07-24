@@ -24,10 +24,22 @@ Parameters:
   MicroservicesTemplate:
     Description: 'Path on which CloudFormation templates are uploaded'
     Type: 'String'
-  CodePipelineRoleArn:
-    Description: 'IAM role used by the Code Pipeline'
-    Type: 'String'
 Resources:
+  PipelineIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'codepipeline.amazonaws.com'
+      Path: !Join['',['service/pipeline/',serviceName]]
+      ManagedPolicyArns:
+        -
+          'arn:aws:iam::aws:policy/AdministratorAccess'
+
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -35,7 +47,7 @@ Resources:
       ArtifactStore:
         Location: !Ref ArtifactBucket
         Type: 'S3'
-      RoleArn: !Ref CodePipelineRoleArn
+      RoleArn: !Ref PipelineIamRole
       Stages:
         -
           Name: Source
