@@ -120,7 +120,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
                 InputArtifacts: [Name: 'AppSourceArtifact']
-                OutputArtifacts: [Name: 'ContainerImageArtifact']
+                OutputArtifacts: [Name: 'ContainerImageArtifacts']
                 RunOrder: 20
                 Configuration:
                   ProjectName: 'build-docker-image'
@@ -131,20 +131,23 @@ Resources:
                 Owner: AWS
                 Version: 1
                 Provider: CodeBuild
-                InputArtifacts: [Name: 'ContainerImageArtifact']
+                InputArtifacts: [Name: 'ContainerImageArtifacts']
                 RunOrder: 30
                 Configuration:
                   ProjectName: 'test-docker-image'
             -
-              Name: ContainerDeploy
+              Name: ServiceDeploy
               ActionTypeId:
                 Category: Test
                 Owner: AWS
                 Version: 1
                 Provider: CloudFormation
-                InputArtifacts: [Name: 'ContainerImageArtifact']
+                InputArtifacts: [Name: 'ContainerImageArtifacts']
                 RunOrder: 40
                 Configuration:
                   ActionMode: CREATE_UPDATE
+                  # TODO: Use a role Arn
                   StackName: !Join['-', [!Ref ServiceName, 'service']]
+                  # TODO: change the template path to be a new source
                   TemplatePath: !Ref MicroservicesTemplate
+                  TemplateConfiguration: ContainerImageArtifacts::configuration.json
