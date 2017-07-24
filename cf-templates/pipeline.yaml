@@ -35,10 +35,56 @@ Resources:
             Effect: Allow
             Principal:
               Service: 'codepipeline.amazonaws.com'
-      Path: !Join['',['service/pipeline/',serviceName]]
+      Path: !Join['/',['service',!Ref ServiceName,'admin']]
       ManagedPolicyArns:
         -
           'arn:aws:iam::aws:policy/AdministratorAccess'
+  BuildIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'codebuild.amazonaws.com'
+      Path: !Join['/',['service',!Ref ServiceName,'admin']]
+      ManagedPolicyArns:
+        -
+          'arn:aws:iam::aws:policy/AdministratorAccess'
+  ImageRepo:
+    Type: "AWS::ECR::Repository"
+    Properties:
+      RepositoryName: !Join['-',['appservice',!Ref ServiceName,'repo']]
+      RepositoryPolicyText: JSON object
+  BuildProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Artifacts:
+        Artifacts
+      Description: !Join['-',['build',!Ref ServiceName,'container']]
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+
+        EnvironmentVariables:
+          -
+            Name: "AWS_DEFAULT_REGION",
+            Value: !Ref AWS::Region
+          -
+            Name: "AWS_ACCOUNT_ID",
+            Value: !Ref AWS::AccountId
+          -
+            Name: "IMAGE_REPO_NAME",
+            Value: !Join['-',['appservice',!Ref ServiceName,'repo']]
+          -
+            Name: "IMAGE_TAG",
+            Value: "latest"
+      Name:
+      ServiceRole: !Ref BuildIamRole
+      Source: !Join['-',['build',!Ref ServiceName,'container']]
+        Type: CODEPIPELINE
+        # TODO: We want to replace the buildspec with an inline buildspec
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
