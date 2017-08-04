@@ -33,15 +33,40 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-          -
-            Action: 'sts:AssumeRole'
-            Effect: Allow
-            Principal:
-              Service: 'codepipeline.amazonaws.com'
-      Path: !Sub /service/${ServiceName}/admin/
-      ManagedPolicyArns:
-        -
-          'arn:aws:iam::aws:policy/AdministratorAccess'
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [codepipeline.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ecs-workshop-service-pipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 's3:*'
+                - 'codebuild:*'
+                - 'cloudformation:CreateStack'
+                - 'cloudformation:DescribeStacks'
+                - 'cloudformation:DeleteStack'
+                - 'cloudformation:UpdateStack'
+                - 'cloudformation:CreateChangeSet'
+                - 'cloudformation:ExecuteChangeSet'
+                - 'cloudformation:DeleteChangeSet'
+                - 'cloudformation:DescribeChangeSet'
+                - 'cloudformation:SetStackPolicy'
+                - 'iam:PassRole'
+                - 'sns:Publish'
+                - 'codecommit:BatchGetRepositories'
+                - 'codecommit:Get*'
+                - 'codecommit:GitPull'
+                - 'codecommit:List*'
+                - 'codecommit:Update*'
+                - 'codecommit:Test*'
+                - 'codecommit:UploadArchive'
+                Effect: Allow
+                Resource: '*'
 
   BuildIamRole:
     Type: AWS::IAM::Role
@@ -53,10 +78,9 @@ Resources:
             Effect: Allow
             Principal:
               Service: 'codebuild.amazonaws.com'
-      Path: !Sub /service/${ServiceName}/admin/
+      Path: /
       ManagedPolicyArns:
-        -
-          'arn:aws:iam::aws:policy/AdministratorAccess'
+        - 'arn:aws:iam::aws:policy/AdministratorAccess'
 
   ImageRepo:
     Type: "AWS::ECR::Repository"
@@ -84,11 +108,12 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Artifacts:
-        Artifacts
+        Type: CODEPIPELINE
       Description: !Join ['-',['build',!Ref ServiceName,'container']]
       Environment:
+        Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
-
+        Image: aws/codebuild/nodejs.4.3.2
         EnvironmentVariables:
           - Name: "AWS_DEFAULT_REGION"
             Value: !Ref AWS::Region
@@ -111,7 +136,7 @@ Resources:
       ArtifactStore:
         Location: !Ref ArtifactBucket
         Type: 'S3'
-      RoleArn: !Ref PipelineIamRole
+      RoleArn: !GetAtt PipelineIamRole.Arn
       Stages:
         -
           Name: Source
@@ -122,47 +147,53 @@ Resources:
                 Category: Source
                 Owner: AWS
                 Provider: S3
-                Version: 1
+                Version: '1'
               Configuration:
                 S3Bucket: !Ref TemplatesBucket
                 S3ObjectKey: !Sub ecs-workshop/services/${ServiceName}/${GitHubUser}_${GitRepo}
                 PollForSourceChanges: true
-            -
-              Name: ContainerBuild
+              OutputArtifacts:
+                - Name: S3Artifact
+              RunOrder: '1'
+        - Name: ContainerBuild
+          Actions:
+            - Name: CodeBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Version: 1
                 Provider: CodeBuild
-                InputArtifacts: [Name: 'AppSourceArtifact']
-                OutputArtifacts: [Name: 'ContainerImageArtifacts']
-                RunOrder: 20
-                Configuration:
-                  ProjectName: 'build-docker-image'
-            -
-              Name: ContainerTest
-              ActionTypeId:
-                Category: Test
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-                InputArtifacts: [Name: 'ContainerImageArtifacts']
-                RunOrder: 30
-                Configuration:
-                  ProjectName: 'test-docker-image'
-            -
-              Name: ServiceDeploy
-              ActionTypeId:
-                Category: Test
-                Owner: AWS
-                Version: 1
-                Provider: CloudFormation
-                InputArtifacts: [Name: 'ContainerImageArtifacts']
-                RunOrder: 40
-                Configuration:
-                  ActionMode: CREATE_UPDATE
-                  # TODO: Use a role Arn
-                  StackName: !Join ['-', [!Ref ServiceName, 'service']]
-                  # TODO: change the template path to be a new source
-                  TemplatePath: !Ref MicroservicesTemplate
-                  TemplateConfiguration: ContainerImageArtifacts::configuration.json
+              InputArtifacts: [Name: 'S3Artifact']
+              OutputArtifacts: [Name: 'ContainerImageArtifacts']
+              RunOrder: 20
+              Configuration:
+                ProjectName: 'build-docker-image'
+          #- Name: ContainerTest
+          #- Actions:
+          #-   - Name: ContainerTest
+          #-     ActionTypeId:
+          #-       Category: Test
+          #-       Owner: AWS
+          #-       Version: 1
+          #-       Provider: CodeBuild
+          #-     RunOrder: 30
+          #-     InputArtifacts: [Name: 'ContainerImageArtifacts']
+          #-     Configuration:
+          #-       ProjectName: 'test-docker-image'
+          #- #- Name: ServiceDeploy
+          #- Actions:
+          #-   - Name: ServiceDeploy
+          #-     ActionTypeId:
+          #-       Category: Test
+          #-       Owner: AWS
+          #-       Version: 1
+          #-       Provider: CloudFormation
+          #-     InputArtifacts: [Name: 'ContainerImageArtifacts']
+          #-     RunOrder: 40
+          #-     Configuration:
+          #-       ActionMode: CREATE_UPDATE
+          #-       # TODO: Use a role Arn
+          #-       StackName: !Join ['-', [!Ref ServiceName, 'service']]
+          #-       # TODO: change the template path to be a new source
+          #-       TemplatePath: !Ref MicroservicesTemplate
+          #-       TemplateConfiguration: ContainerImageArtifacts::configuration.json
