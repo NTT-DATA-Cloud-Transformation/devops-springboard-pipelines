@@ -18,6 +18,9 @@ Parameters:
     Description: 'Path on which Microservice is deployed'
     Type: 'String'
     AllowedPattern: '^\w*$'
+  TemplatesBucket:
+    Description: The bucket for templates
+    Type: String
   ArtifactBucket:
     Description: 'Path on which Microservice is deployed'
     Type: 'String'
@@ -35,10 +38,11 @@ Resources:
             Effect: Allow
             Principal:
               Service: 'codepipeline.amazonaws.com'
-      Path: !Join['/',['service',!Ref ServiceName,'admin']]
+      Path: !Sub /service/${ServiceName}/admin/
       ManagedPolicyArns:
         -
           'arn:aws:iam::aws:policy/AdministratorAccess'
+
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -49,47 +53,61 @@ Resources:
             Effect: Allow
             Principal:
               Service: 'codebuild.amazonaws.com'
-      Path: !Join['/',['service',!Ref ServiceName,'admin']]
+      Path: !Sub /service/${ServiceName}/admin/
       ManagedPolicyArns:
         -
           'arn:aws:iam::aws:policy/AdministratorAccess'
+
   ImageRepo:
     Type: "AWS::ECR::Repository"
     Properties:
-      RepositoryName: !Join['-',['appservice',!Ref ServiceName,'repo']]
-      RepositoryPolicyText: JSON object
+      RepositoryName: !Join ['-',['appservice',!Ref ServiceName,'repo']]
+      RepositoryPolicyText:
+        Statement:
+          -
+            Action:
+              - ecr:GetAuthorizationToken
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetRepositoryPolicy
+              - ecr:DescribeRepositories
+              - ecr:ListImages
+              - ecr:BatchGetImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+              - ecr:PutImage
+            Effect: Allow
+            Principal: '*'
+
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Artifacts:
         Artifacts
-      Description: !Join['-',['build',!Ref ServiceName,'container']]
+      Description: !Join ['-',['build',!Ref ServiceName,'container']]
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
 
         EnvironmentVariables:
-          -
-            Name: "AWS_DEFAULT_REGION",
+          - Name: "AWS_DEFAULT_REGION"
             Value: !Ref AWS::Region
-          -
-            Name: "AWS_ACCOUNT_ID",
+          - Name: "AWS_ACCOUNT_ID"
             Value: !Ref AWS::AccountId
-          -
-            Name: "IMAGE_REPO_NAME",
-            Value: !Join['-',['appservice',!Ref ServiceName,'repo']]
-          -
-            Name: "IMAGE_TAG",
+          - Name: "IMAGE_REPO_NAME"
+            Value: !Join ['-',['appservice',!Ref ServiceName,'repo']]
+          - Name: "IMAGE_TAG"
             Value: "latest"
-      Name:
+      Name: !Sub build-${ServiceName}-container
       ServiceRole: !Ref BuildIamRole
-      Source: !Join['-',['build',!Ref ServiceName,'container']]
+      Source: 
         Type: CODEPIPELINE
-        # TODO: We want to replace the buildspec with an inline buildspec
-
+        #BuildSpec
+        
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Join[ '-', [!Ref ServiceName, 'Pipeline']
+      Name: !Join [ '-', [!Ref ServiceName, 'Pipeline']]
       ArtifactStore:
         Location: !Ref ArtifactBucket
         Type: 'S3'
@@ -102,16 +120,13 @@ Resources:
               Name: AppSource
               ActionTypeId:
                 Category: Source
-                Owner: ThirdParty
+                Owner: AWS
+                Provider: S3
                 Version: 1
-                Provider: GitHub
-                OutputArtifacts: [Name: 'AppSourceArtifact']
-                RunOrder: 10
-                Configuration:
-                  Owner: !Ref GitHubUser
-                  Repo: !Ref GitRepo
-                  Branch: !Ref GitBranch
-                  OAuthToken: !Ref GitHubToken
+              Configuration:
+                S3Bucket: !Ref TemplatesBucket
+                S3ObjectKey: !Sub ecs-workshop/services/${ServiceName}/${GitHubUser}_${GitRepo}
+                PollForSourceChanges: true
             -
               Name: ContainerBuild
               ActionTypeId:
@@ -147,7 +162,7 @@ Resources:
                 Configuration:
                   ActionMode: CREATE_UPDATE
                   # TODO: Use a role Arn
-                  StackName: !Join['-', [!Ref ServiceName, 'service']]
+                  StackName: !Join ['-', [!Ref ServiceName, 'service']]
                   # TODO: change the template path to be a new source
                   TemplatePath: !Ref MicroservicesTemplate
                   TemplateConfiguration: ContainerImageArtifacts::configuration.json
