@@ -145,15 +145,16 @@ Resources:
               Name: AppSource
               ActionTypeId:
                 Category: Source
-                Owner: AWS
-                Provider: S3
-                Version: '1'
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: 1
               Configuration:
-                S3Bucket: !Ref TemplatesBucket
-                S3ObjectKey: !Sub ecs-workshop/services/${ServiceName}/${GitHubUser}_${GitRepo}
-                PollForSourceChanges: true
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitRepo
+                Branch: !Ref GitBranch
+                OAuthToken: !Ref GitHubToken
               OutputArtifacts:
-                - Name: S3Artifact
+                - Name: GitHubArtifact
               RunOrder: '1'
         - Name: ContainerBuild
           Actions:
@@ -163,7 +164,7 @@ Resources:
                 Owner: AWS
                 Version: 1
                 Provider: CodeBuild
-              InputArtifacts: [Name: 'S3Artifact']
+              InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'ContainerImageArtifacts']
               RunOrder: 20
               Configuration:
