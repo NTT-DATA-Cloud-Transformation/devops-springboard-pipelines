@@ -168,7 +168,7 @@ Resources:
               OutputArtifacts: [Name: 'ContainerImageArtifacts']
               RunOrder: 20
               Configuration:
-                ProjectName: !Sub build-${ServiceName}-image
+                ProjectName: !Sub build-${ServiceName}-container
           #- Name: ContainerTest
           #- Actions:
           #-   - Name: ContainerTest
