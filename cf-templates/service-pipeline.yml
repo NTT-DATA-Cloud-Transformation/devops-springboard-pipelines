@@ -168,7 +168,7 @@ Resources:
               OutputArtifacts: [Name: 'ContainerImageArtifacts']
               RunOrder: 20
               Configuration:
-                ProjectName: 'build-docker-image'
+                ProjectName: !Sub build-${ServiceName}-image
           #- Name: ContainerTest
           #- Actions:
           #-   - Name: ContainerTest
