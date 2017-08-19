@@ -1,0 +1,98 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for microservies being deployed'
+Parameters:
+  ContainerImageId:
+    Description: 'Iamge ID for the container'
+    Type: 'String'
+  ServicePath:
+    Description: 'Path on which Microservice is deployed'
+    Type: 'String'
+    AllowedPattern: '^[a-z0-9]*$'
+  ContainerTag:
+    Description: 'Container tag being deployed'
+    Type: 'String'
+  GitUser:
+    Description: The Github User
+    Type: String
+  GitRepo:
+    Description: The Github Repo
+    Type: String
+  GitBranch:
+    Description: The git branch
+    Type: String
+  Flavor:
+    Description: The Flavor of Pipeline 
+    Type: String
+  Priority:
+    Description: The priority of the path
+    Type: String
+  Tag:
+    Type: String
+    Default: latest
+    
+Resources:
+  ECSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam:aws:policy/service-role/AmazonEC2ConatinerServiceRole
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${GitUser}-${GitRepo}-vanilla-tg
+      VpcId: !ImportValue ecs-workshop-VpcId
+      Port: 80
+      Protocol: HTTP
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !ImportValue ecs-workshop-lb-listener
+      Priority: !Ref Priority
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - !Sub ${GitUser}/${GitRepo}/${GitBranch}
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: ecs-workshop-cluster
+      Role: !Ref ECSServiceRole
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskDefinition
+      LoudBalancers:
+        - ContainerName: !Sub ${GitUser}-${GitRepo}-${Flavor}
+          ContainerPort: 80
+          TargetGroup: !Ref TargetGroup
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-ecs-workshop
+      ContainerDefintions:
+        - Name: !Sub ${GitUser}-${GitRepo}-${Flavor}
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${GitRepo}:${Tag}
+          Essential: true
+          MemorySize: 128
+          PortMappings:
+            - ContainerPort: 80
+          Environment:
+            - Name: SERVICE_PATH
+              Value: !Ref ServicePath
+          Cpu: 10
+
+

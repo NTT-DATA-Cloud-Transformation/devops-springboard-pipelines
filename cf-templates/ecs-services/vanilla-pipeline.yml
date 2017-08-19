@@ -88,6 +88,11 @@ Resources:
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AdministratorAccess'
 
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${GitHubUser}-${GitRepo}-${GitBranch}
+
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -112,8 +117,12 @@ Resources:
               commands:
                 - docker push "${REPOSITORY_URI}:${TAG}"
                 - printf '{"tag":"%s"}' $TAG > build.json
+                - aws s3 cp  s3://${ARTIFACT_BUCKET}/microservices/microservice.yml .
           artifacts:
-            files: build.json 
+            files: 
+              - build.json 
+              - microservice.yml
+              - ${build
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:1.12.1"
@@ -122,7 +131,10 @@ Resources:
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${GitRepo}
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: ARTIFACT_BUCKET
+            Value: ${ArtifactBucket}
+          
         
   VanillaPipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -137,7 +149,7 @@ Resources:
           Name: Source
           Actions:
             -
-              Name: AppSource
+              Name: AppRepoSource
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
@@ -162,7 +174,7 @@ Resources:
               Configuration:
                 ProjectName: !Sub build-${ServiceName}-container
               InputArtifacts: [Name: 'GitHubArtifact']
-              OutputArtifacts: [Name: 'ContainerImageArtifacts']
+              OutputArtifacts: [Name: 'BuildOutput']
               RunOrder: 20
         - Name: ServiceDeploy
           Actions:
@@ -177,4 +189,17 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 Stackname: !Sub ${GitHubUser}-${GitRepo}-vanilla
                 Capabilities: CAPABILITY_NAMED_IAM
-                Template
+                TemplatePath:  BuildOutput::microservice.yml
+                RoleArn: !GetAtt PipelineIamRole.Arn
+                ParameterOverrides: !Sub |
+                  {
+                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "DesiredCount": 1,
+                    "GitUser": "${GitHubUser}",
+                    "GitRepo": "${GitRepo}",
+                    "GitBranch": "${GitBranch}",
+                    "ServicePath": "/${GitHubUser}/${GitRepo}/${GitBranch}/",
+                    "Flavor": "vanilla",
+                    "Priority": 11
+                  }
+
