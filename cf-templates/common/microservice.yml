@@ -22,19 +22,6 @@ Parameters:
     Type: String
 
 Resources:
-  ECSServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ecs.amazonaws.com
-      ManagedPolicyArns:
-        - arn:aws:iam:aws:policy/service-role/AmazonEC2ContainerServiceRole
-
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
