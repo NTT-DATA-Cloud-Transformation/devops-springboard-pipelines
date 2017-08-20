@@ -2,8 +2,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CloudFormation template for microservies being deployed'
 Parameters:
-  ContainerRegistry:
-    Description: Registry for getting the container
+  ContainerRepository:
+    Description: Repository for getting the container
     Type: String
   ContainerName:
     Description: Name for container used in various places
@@ -66,7 +66,7 @@ Resources:
       Family: !Ref ContainerName
       ContainerDefinitions:
         - Name: !Ref ContainerName
-          Image: !Sub ${ContainerRegistry}/${ContainerName}:${ContainerTag}
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}/${ContainerRepository}:${ContainerTag}
           Essential: true
           MemorySize: 128
           PortMappings:
