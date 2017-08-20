@@ -1,0 +1,77 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for microservies being deployed'
+Parameters:
+  ContainerRepository:
+    Description: Repository for getting the container
+    Type: String
+  ContainerName:
+    Description: Name for container used in various places
+    Type: String
+  ContainerTag:
+    Description: 'Container tag being deployed'
+    Type: 'String'
+  ListenerPriority:
+    Description: The priority of the path
+    Type: String
+  LZStackPrefix:
+    Description: Stack prefix to read parameters from landing zone stack
+    Type: String
+  ListenerPath:
+    Description: Path for ECS listener
+    Type: String
+
+Resources:
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${ContainerName}-tg
+      VpcId:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
+      Port: 80
+      Protocol: HTTP
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-lb-listener
+      Priority: !Ref ListenerPriority
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - !Ref ListenerPath
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-cluster-name
+      Role:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-service-role
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskDefinition
+      LoudBalancers:
+        - ContainerName: !Ref ContainerName
+          ContainerPort: 80
+          TargetGroup: !Ref TargetGroup
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref ContainerName
+      ContainerDefinitions:
+        - Name: !Ref ContainerName
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}/${ContainerRepository}:${ContainerTag}
+          Essential: true
+          MemorySize: 128
+          PortMappings:
+            - ContainerPort: 80
+          Environment:
+            - Name: SERVICE_PATH
+              Value: !Ref ListenerPath
+          Cpu: 10

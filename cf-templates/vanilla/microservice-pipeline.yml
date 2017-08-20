@@ -1,0 +1,205 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cloudformation for deploying ecs-service
+
+Parameters:
+  GitHubUser:
+    Description: 'GitHub UserName'
+    Type: 'String'
+  GitRepo:
+    Description: 'URL for Git repo'
+    Type: 'String'
+  GitBranch:
+    Description: 'Branch being deployed'
+    Type: 'String'
+  GitHubToken:
+    Description: 'OAuth Token for repo access'
+    Type: 'String'
+  ServiceName:
+    Description: 'Path on which Microservice is deployed'
+    Type: 'String'
+    AllowedPattern: '^\w*$'
+  TemplatesBucket:
+    Description: The bucket for templates
+    Type: String
+  ArtifactBucket:
+    Description: 'Path on which Microservice is deployed'
+    Type: 'String'
+  MicroservicesTemplate:
+    Description: 'Path on which CloudFormation templates are uploaded'
+    Type: 'String'
+  ServiceIAMRole:
+    Description: The Service IAM Role  #TODO
+    Type: String
+
+Resources: 
+  PipelineIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [codepipeline.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ecs-workshop-service-pipeline # Dynamic
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - 's3:*'
+                - 'codebuild:*'
+                - 'cloudformation:CreateStack'
+                - 'cloudformation:DescribeStacks'
+                - 'cloudformation:DeleteStack'
+                - 'cloudformation:UpdateStack'
+                - 'cloudformation:CreateChangeSet'
+                - 'cloudformation:ExecuteChangeSet'
+                - 'cloudformation:DeleteChangeSet'
+                - 'cloudformation:DescribeChangeSet'
+                - 'cloudformation:SetStackPolicy'
+                - 'iam:PassRole'
+                - 'sns:Publish'
+                 # 'codecommit:BatchGetRepositories'
+                 #  - 'codecommit:Get*'
+                 #  - 'codecommit:GitPull'
+                 #  - 'codecommit:List*'
+                 #  - 'codecommit:Update*'
+                 #  - 'codecommit:Test*'
+                 #  - 'codecommit:UploadArchive'
+                Effect: Allow
+                Resource: '*'
+
+  #TODO go into 'global' template
+  BuildIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'codebuild.amazonaws.com'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AdministratorAccess'
+
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${GitHubUser}-${GitRepo}-${GitBranch}
+
+  BuildProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Join ['-',['build',!Ref ServiceName,'container']]
+      Name: !Sub build-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source: 
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - $(aws ecr get-login)
+                - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+            build:
+              commands:
+                - docker build --tag "${REPOSITORY_URI}:${TAG}" .
+            post_build:
+              commands:
+                - docker push "${REPOSITORY_URI}:${TAG}"
+                - printf '{"tag":"%s"}' $TAG > build.json
+                - aws s3 cp  s3://${ARTIFACT_BUCKET}/microservices/microservice.yml .
+          artifacts:
+            files: 
+              - build.json 
+              - microservice.yml
+              - ${build
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:1.12.1"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: ARTIFACT_BUCKET
+            Value: ${ArtifactBucket}
+          
+        
+  VanillaPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Join [ '-', [!Ref ServiceName, 'Pipeline']]
+      ArtifactStore:
+        Location: !Ref ArtifactBucket
+        Type: 'S3'
+      RoleArn: !GetAtt PipelineIamRole.Arn
+      Stages:
+        -
+          Name: Source
+          Actions:
+            -
+              Name: AppRepoSource
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: 1
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitRepo
+                Branch: !Ref GitBranch
+                OAuthToken: !Ref GitHubToken
+              OutputArtifacts:
+                - Name: GitHubArtifact
+              RunOrder: '1'
+        - Name: ContainerBuild
+          Actions:
+            - Name: CodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub build-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              OutputArtifacts: [Name: 'BuildOutput']
+              RunOrder: 20
+        - Name: ServiceDeploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangesetName: !Sub Deploy-${GitRepo}-Vanilla
+                ActionMode: CREATE_UPDATE
+                Stackname: !Sub ${GitHubUser}-${GitRepo}-vanilla
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplatePath:  BuildOutput::microservice.yml
+                RoleArn: !GetAtt PipelineIamRole.Arn
+                ParameterOverrides: !Sub |
+                  {
+                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "DesiredCount": 1,
+                    "GitUser": "${GitHubUser}",
+                    "GitRepo": "${GitRepo}",
+                    "GitBranch": "${GitBranch}",
+                    "ServicePath": "/${GitHubUser}/${GitRepo}/${GitBranch}/",
+                    "Flavor": "vanilla",
+                    "Priority": 11
+                  }
+
