@@ -26,14 +26,16 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Sub ${ContainerName}-tg
-      VpcId: !ImportValue !Sub ${LZStackPrefix}-VpcId
+      VpcId:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
       Port: 80
       Protocol: HTTP
 
   ListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !ImportValue !Sub ${LZStackPrefix}-lb-listener
+      ListenerArn:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-lb-listener
       Priority: !Ref ListenerPriority
       Conditions:
         - Field: path-pattern
@@ -47,8 +49,10 @@ Resources:
   Service:
     Type: AWS::ECS::Service
     Properties:
-      Cluster: !ImportValue !Sub ${LZStackPrefix}-cluster
-      Role: !ImportValue !Sub ${LZStackPrefix}-Service-Role
+      Cluster:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-cluster
+      Role:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-Service-Role
       DesiredCount: 1
       TaskDefinition: !Ref TaskDefinition
       LoudBalancers:
@@ -69,5 +73,5 @@ Resources:
             - ContainerPort: 80
           Environment:
             - Name: SERVICE_PATH
-              Value: !Ref ServicePath
+              Value: !Ref ListenerPath
           Cpu: 10
