@@ -20,6 +20,16 @@ Parameters:
   ListenerPath:
     Description: Path for ECS listener
     Type: String
+  TaskIamRoleArn:
+    Description: ARN for IAM role to use for the task
+    Type: String
+    Default: ""
+
+Conditions:
+  TaskHasIamRole:
+    !Equals
+      - !Ref TaskIamRoleArn
+      - ""
 
 Resources:
   TargetGroup:
@@ -59,11 +69,15 @@ Resources:
         - ContainerName: !Ref ContainerName
           ContainerPort: 80
           TargetGroup: !Ref TargetGroup
-
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Ref ContainerName
+      TaskRoleArn:
+        Fn::If:
+          - TaskHasIamRole
+          - !Ref TaskIamRoleArn
+          - AWS::NoValue
       ContainerDefinitions:
         - Name: !Ref ContainerName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}/${ContainerRepository}:${ContainerTag}
