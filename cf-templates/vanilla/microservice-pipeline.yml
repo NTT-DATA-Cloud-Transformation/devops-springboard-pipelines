@@ -87,7 +87,7 @@ Resources:
   Repository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub ${GitHubUser}-${GitRepo}-${GitBranch}
+      RepositoryName: !Sub ${ServiceName}
 
   BuildProject:
     Type: "AWS::CodeBuild::Project"
