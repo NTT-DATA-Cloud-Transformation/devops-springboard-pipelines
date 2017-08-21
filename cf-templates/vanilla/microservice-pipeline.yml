@@ -198,3 +198,4 @@ Resources:
                     "ListenerPath": "${ListenerPath}",
                     "LZStackPrefix": "${LZStackPrefix}"
                   }
+              InputArtifacts: [Name: 'BuildOutput']
