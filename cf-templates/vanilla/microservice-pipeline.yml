@@ -136,7 +136,7 @@ Resources:
   VanillaPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Join [ '-', [!Ref ServiceName, 'Pipeline']]
+      Name: !Sub ${LZStackPrefix}-${ServiceName}-pipeline
       ArtifactStore:
         Location:
           Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
