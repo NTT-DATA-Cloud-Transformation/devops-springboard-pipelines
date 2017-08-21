@@ -25,6 +25,11 @@ Parameters:
     Description: 'Path on which Microservice is deployed'
     Type: 'String'
     AllowedPattern: '^\w*$'
+  ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
+    Description: 'Name of the service'
+    Type: 'String'
+    AllowedPattern: '[a-z0-9\-]'
+
 Resources:
   PipelineIamRole:
     Type: AWS::IAM::Role
@@ -187,7 +192,7 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "ContainerRepository": "${GitHubUser}-${GitRepo}-${GitBranch}",
-                    "ContainerName": "${GitHubUser}-${GitRepo}-${GitBranch}",
+                    "ContainerName": "${ServiceName}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": 1,
                     "ListenerPriority": "${ListenerPriority}",
