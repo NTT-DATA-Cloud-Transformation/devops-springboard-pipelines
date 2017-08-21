@@ -183,7 +183,7 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangesetName: !Sub Deploy-${GitRepo}-Vanilla
+                ChangeSetName: !Sub Deploy-${ServiceName}-Vanilla-On-${LZStackPrefix}
                 ActionMode: CREATE_UPDATE
                 Stackname: !Sub ${GitHubUser}-${GitRepo}-vanilla
                 Capabilities: CAPABILITY_NAMED_IAM
