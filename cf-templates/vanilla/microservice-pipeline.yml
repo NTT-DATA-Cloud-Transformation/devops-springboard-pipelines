@@ -25,15 +25,6 @@ Parameters:
     Description: 'Path on which Microservice is deployed'
     Type: 'String'
     AllowedPattern: '^\w*$'
-  TemplatesBucket:
-    Description: The bucket for templates
-    Type: String
-  ArtifactBucket:
-    Description: 'Path on which Microservice is deployed'
-    Type: 'String'
-  MicroservicesTemplate:
-    Description: 'Path on which CloudFormation templates are uploaded'
-    Type: 'String'
 Resources:
   PipelineIamRole:
     Type: AWS::IAM::Role
