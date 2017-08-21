@@ -70,7 +70,6 @@ Resources:
                 Effect: Allow
                 Resource: '*'
 
-  #TODO go into 'global' template
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -95,7 +94,7 @@ Resources:
                   - s3:GetObject
                 Resource:
                   - !Sub
-                    - 'arn:aws:s3:::${TEMPLATES_BUCKET}/*' # Todo narrow down
+                    - 'arn:aws:s3:::${TEMPLATES_BUCKET}/*'
                     -
                       TEMPLATES_BUCKET:
                         Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
