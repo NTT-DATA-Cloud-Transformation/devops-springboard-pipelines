@@ -118,7 +118,6 @@ Resources:
             files:
               - build.json
               - microservice.yml
-              - ${build
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:1.12.1"
