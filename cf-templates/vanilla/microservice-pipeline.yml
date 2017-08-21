@@ -84,6 +84,23 @@ Resources:
       Path: /
       Policies:
         -
+          PolicyName: CodeBuildGetTemplatesPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: AccessTemplateBucket
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub
+                    - 'arn:aws:s3:::${TEMPLATES_BUCKET}/*' # Todo narrow down
+                    -
+                      TEMPLATES_BUCKET:
+                        Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+
+        -
           PolicyName: CodeBuildStandardPolicy
           PolicyDocument:
             Version: 2012-10-17
