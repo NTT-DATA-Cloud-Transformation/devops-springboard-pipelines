@@ -39,7 +39,6 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub ${ContainerName}-tg
       VpcId:
         Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
       Port: 80
