@@ -129,7 +129,8 @@ Resources:
           - Name: REPOSITORY_URI
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
           - Name: TEMPLATE_BUCKET
-            Value: !Sub ${LZStackPrefix}-service-template-bucket
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
 
 
   VanillaPipeline:
@@ -137,7 +138,8 @@ Resources:
     Properties:
       Name: !Join [ '-', [!Ref ServiceName, 'Pipeline']]
       ArtifactStore:
-        Location: !Sub ${LZStackPrefix}-service-artifact-bucket
+        Location:
+          Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
         Type: 'S3'
       RoleArn: !GetAtt PipelineIamRole.Arn
       Stages:
