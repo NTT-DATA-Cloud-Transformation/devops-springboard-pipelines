@@ -3,6 +3,9 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Cloudformation for deploying ecs-service
 
 Parameters:
+  LZStackPrefix:
+    Description: 'Prefix to find values from landing zone'
+    Type: String
   GitHubUser:
     Description: 'GitHub UserName'
     Type: 'String'
@@ -15,7 +18,10 @@ Parameters:
   GitHubToken:
     Description: 'OAuth Token for repo access'
     Type: 'String'
-  ServiceName:
+  ListenerPriority:
+    Description: 'Priority in ALB'
+    Type: Number
+  ListenerPath:
     Description: 'Path on which Microservice is deployed'
     Type: 'String'
     AllowedPattern: '^\w*$'
@@ -28,11 +34,7 @@ Parameters:
   MicroservicesTemplate:
     Description: 'Path on which CloudFormation templates are uploaded'
     Type: 'String'
-  ServiceIAMRole:
-    Description: The Service IAM Role  #TODO
-    Type: String
-
-Resources: 
+Resources:
   PipelineIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -45,7 +47,7 @@ Resources:
         Version: '2012-10-17'
       Path: /
       Policies:
-        - PolicyName: ecs-workshop-service-pipeline # Dynamic
+        - PolicyName: !Sub ${LZStackPrefix}-service-pipeline # Dynamic
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -101,7 +103,7 @@ Resources:
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
-      Source: 
+      Source:
         Type: CODEPIPELINE
         BuildSpec: |
           version: 0.2
@@ -119,8 +121,8 @@ Resources:
                 - printf '{"tag":"%s"}' $TAG > build.json
                 - aws s3 cp  s3://${ARTIFACT_BUCKET}/microservices/microservice.yml .
           artifacts:
-            files: 
-              - build.json 
+            files:
+              - build.json
               - microservice.yml
               - ${build
       Environment:
@@ -134,8 +136,8 @@ Resources:
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
           - Name: ARTIFACT_BUCKET
             Value: ${ArtifactBucket}
-          
-        
+
+
   VanillaPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -193,13 +195,11 @@ Resources:
                 RoleArn: !GetAtt PipelineIamRole.Arn
                 ParameterOverrides: !Sub |
                   {
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "ContainerRepository": "${GitHubUser}-${GitRepo}-${GitBranch}",
+                    "ContainerName": "${GitHubUser}-${GitRepo}-${GitBranch}",
+                    "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": 1,
-                    "GitUser": "${GitHubUser}",
-                    "GitRepo": "${GitRepo}",
-                    "GitBranch": "${GitBranch}",
-                    "ServicePath": "/${GitHubUser}/${GitRepo}/${GitBranch}/",
-                    "Flavor": "vanilla",
-                    "Priority": 11
+                    "ListenerPriority": "${ListenerPriority}",
+                    "ListenerPath": "${ListenerPath}",
+                    "LZStackPrefix": "${LZStackPrefix}"
                   }
-
