@@ -99,45 +99,49 @@ Resources:
                     -
                       TEMPLATES_BUCKET:
                         Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+      ManagedPolicyArns:
+        - !Ref CodeBuildStandardPolicy
 
-        -
-          PolicyName: CodeBuildStandardPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
-                Effect: Allow
-                Action:
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:PutImage
-                  - ecr:InitiateLayerUpload
-                  - ecr:UploadLayerPart
-                  - ecr:CompleteLayerUpload
-              -
-                Sid: AccessToCloudWatchLogs
-                Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - ecr:GetAuthorizationToken
-                Resource:
-                  - '*' # TODO Narrow down to just the correct log group
-              -
-                Sid: AccessArtifactStore
-                Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:GetObjectVersion
-                Resource:
-                  - !Sub
-                    - 'arn:aws:s3:::${ARTIFACTS_BUCKET}/*' # Todo narrow down
-                    -
-                      ARTIFACTS_BUCKET:
-                        Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+  CodeBuildStandardPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: CodeBuildStandardPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+            Effect: Allow
+            Action:
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+              - ecr:PutImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+          -
+            Sid: AccessToCloudWatchLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - ecr:GetAuthorizationToken
+            Resource:
+              - '*' # TODO Narrow down to just the correct log group
+          -
+            Sid: AccessArtifactStore
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:GetObjectVersion
+            Resource:
+              - !Sub
+                - 'arn:aws:s3:::${ARTIFACTS_BUCKET}/*' # Todo narrow down
+                -
+                  ARTIFACTS_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
 
   Repository:
     Type: AWS::ECR::Repository
