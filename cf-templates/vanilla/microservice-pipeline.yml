@@ -119,7 +119,7 @@ Resources:
               commands:
                 - docker push "${REPOSITORY_URI}:${TAG}"
                 - printf '{"tag":"%s"}' $TAG > build.json
-                - aws s3 cp  s3://${ARTIFACT_BUCKET}/microservices/microservice.yml .
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/cf-templates/common/microservice.yml .
           artifacts:
             files:
               - build.json
@@ -134,8 +134,8 @@ Resources:
             Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
-          - Name: ARTIFACT_BUCKET
-            Value: ${ArtifactBucket}
+          - Name: TEMPLATE_BUCKET
+            Value: !Sub ${LZStackPrefix}-service-template-bucket
 
 
   VanillaPipeline:
@@ -143,7 +143,7 @@ Resources:
     Properties:
       Name: !Join [ '-', [!Ref ServiceName, 'Pipeline']]
       ArtifactStore:
-        Location: !Ref ArtifactBucket
+        Location: !Sub ${LZStackPrefix}-service-artifact-bucket
         Type: 'S3'
       RoleArn: !GetAtt PipelineIamRole.Arn
       Stages:
