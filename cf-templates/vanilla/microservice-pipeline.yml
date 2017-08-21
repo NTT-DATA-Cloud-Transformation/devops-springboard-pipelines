@@ -24,11 +24,9 @@ Parameters:
   ListenerPath:
     Description: 'Path on which Microservice is deployed'
     Type: 'String'
-    AllowedPattern: '^\w*$'
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
     Type: 'String'
-    AllowedPattern: '[a-z0-9\-]'
 
 Resources:
   PipelineIamRole:
