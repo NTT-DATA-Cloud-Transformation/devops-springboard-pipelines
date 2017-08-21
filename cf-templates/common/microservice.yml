@@ -65,7 +65,7 @@ Resources:
         Fn::ImportValue: !Sub ${LZStackPrefix}-service-role
       DesiredCount: 1
       TaskDefinition: !Ref TaskDefinition
-      LoudBalancers:
+      LoadBalancers:
         - ContainerName: !Ref ContainerName
           ContainerPort: 80
           TargetGroup: !Ref TargetGroup
