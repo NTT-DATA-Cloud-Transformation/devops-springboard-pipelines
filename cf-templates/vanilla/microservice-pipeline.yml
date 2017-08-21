@@ -185,13 +185,13 @@ Resources:
               Configuration:
                 ChangeSetName: !Sub Deploy-${ServiceName}-Vanilla-On-${LZStackPrefix}
                 ActionMode: CREATE_UPDATE
-                Stackname: !Sub ${GitHubUser}-${GitRepo}-vanilla
+                StackName: !Sub ${LZStackPrefix}-${ServiceName}-vanilla
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
                 RoleArn: !GetAtt PipelineIamRole.Arn
                 ParameterOverrides: !Sub |
                   {
-                    "ContainerRepository": "${GitHubUser}-${GitRepo}-${GitBranch}",
+                    "ContainerRepository": "${ServiceName}",
                     "ContainerName": "${ServiceName}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": 1,
