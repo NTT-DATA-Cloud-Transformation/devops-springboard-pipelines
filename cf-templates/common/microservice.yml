@@ -61,6 +61,7 @@ Resources:
 
   Service:
     Type: AWS::ECS::Service
+    DependsOn: ListenerRule
     Properties:
       Cluster:
         Fn::ImportValue: !Sub ${LZStackPrefix}-cluster-name
