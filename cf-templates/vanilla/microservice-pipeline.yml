@@ -18,6 +18,7 @@ Parameters:
   GitHubToken:
     Description: 'OAuth Token for repo access'
     Type: 'String'
+    NoEcho: true
   ListenerPriority:
     Description: 'Priority in ALB'
     Type: Number
