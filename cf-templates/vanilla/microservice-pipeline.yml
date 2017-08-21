@@ -92,7 +92,7 @@ Resources:
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
-      Description: !Join ['-',['build',!Ref ServiceName,'container']]
+      Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and push to ECR at ${ContainerRepository}'
       Name: !Sub build-${ServiceName}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
@@ -126,12 +126,58 @@ Resources:
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-
-
+  BuildProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub '$Checkout container from ${ContainerRepository} and check response on port 80'
+      Name: !Sub test-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - $(aws ecr get-login)
+                - echo Testing $TAG
+                - docker pull ${REPOSITORY_URI}:${TAG}
+            build:
+              commands:
+                - docker run -d --rm --name test-container  ${REPOSITORY_NAME}:${TAG}
+                - export CONTAINER_IP=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' test-container`
+                - export STATUS_CODE=`curl -I http://$CONTAINER_IP:80/ 2>/dev/null | head -n 1|cut -d$' ' -f2`
+                - ["$STATUS_CODE" eq "200"]
+            post_build:
+              commands:
+                - docker kill test-container
+          artifacts:
+            files:
+              - build.json
+              - microservice.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:1.12.1"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}
+          - Name: REPOSITORY_NAME
+            Value: !Sub ${ContainerRepository}
+          - Name: TAG
+            Value:
+              !GetParam:
+                - BuildOutput
+                - build.json
+                - tag
   VanillaPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -160,9 +206,11 @@ Resources:
               OutputArtifacts:
                 - Name: GitHubArtifact
               RunOrder: '1'
-        - Name: ContainerBuild
+        -
+          Name: ContainerBuild
           Actions:
-            - Name: CodeBuild
+            -
+              Name: CodeBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -172,10 +220,26 @@ Resources:
                 ProjectName: !Sub build-${ServiceName}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 20
-        - Name: ServiceDeploy
+              RunOrder: 1
+        -
+          Name: ContainerTest
           Actions:
-            - Name: Deploy
+            -
+              Name: CodesTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub test-${ServiceName}-container
+              InputArtifacts: [Name: 'BuildOutput']
+              RunOrder: 1
+        -
+          Name: ServiceDeploy
+          Actions:
+            -
+              Name: Deploy
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
