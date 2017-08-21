@@ -195,7 +195,7 @@ Resources:
                     "ContainerRepository": "${ServiceName}",
                     "ContainerName": "${ServiceName}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
-                    "DesiredCount": 1,
+                    "DesiredCount": "1",
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
                     "LZStackPrefix": "${LZStackPrefix}"
