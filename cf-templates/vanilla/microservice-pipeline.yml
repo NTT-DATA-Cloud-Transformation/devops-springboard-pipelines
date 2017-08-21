@@ -246,7 +246,8 @@ Resources:
                 StackName: !Sub ${LZStackPrefix}-${ServiceName}-vanilla
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
-                RoleArn: !GetAtt PipelineIamRole.Arn
+                RoleArn:
+                  Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
                 ParameterOverrides: !Sub |
                   {
                     "ContainerRepository": "${ServiceName}",
