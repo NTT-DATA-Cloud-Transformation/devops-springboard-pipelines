@@ -177,6 +177,7 @@ Resources:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub ${LZStackPrefix}-${ServiceName}-pipeline
+      RestartExecutionOnUpdate: true
       ArtifactStore:
         Location:
           Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
