@@ -54,7 +54,7 @@ Resources:
       Conditions:
         - Field: path-pattern
           Values:
-            - !Ref ListenerPath
+            - !Sub /${ListenerPath}/
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
@@ -69,10 +69,10 @@ Resources:
         Fn::ImportValue: !Sub ${LZStackPrefix}-service-role
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
-      LoudBalancers:
+      LoadBalancers:
         - ContainerName: !Ref ContainerName
           ContainerPort: 80
-          TargetGroup: !Ref TargetGroup
+          TargetGroupArn: !Ref TargetGroup
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -84,7 +84,7 @@ Resources:
           - AWS::NoValue
       ContainerDefinitions:
         - Name: !Ref ContainerName
-          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}/${ContainerRepository}:${ContainerTag}
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}:${ContainerTag}
           Essential: true
           Memory: 128
           PortMappings:
