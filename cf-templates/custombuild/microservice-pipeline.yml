@@ -429,6 +429,6 @@ Resources:
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
                     "LZStackPrefix": "${LZStackPrefix}",
-                    "TaskIamRoleArn": "${UserTaskIamRole}"
+                    "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
                   }
               InputArtifacts: [Name: 'BuildOutput']
