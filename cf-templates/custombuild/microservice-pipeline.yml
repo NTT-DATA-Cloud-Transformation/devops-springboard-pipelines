@@ -376,7 +376,18 @@ Resources:
           Name: ContainerBuild
           Actions:
             -
-              Name: CodeBuild
+              Name: CustomCodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub custom-build-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              RunOrder: 1
+            -
+              Name: ContainerBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -386,12 +397,23 @@ Resources:
                 ProjectName: !Sub build-${ServiceName}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 1
+              RunOrder: 3
         -
           Name: ContainerTest
           Actions:
             -
-              Name: CodeTest
+              Name: CustomCodeTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub custom-test-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              RunOrder: 1
+            -
+              Name: ContainerTest
               ActionTypeId:
                 Category: Test
                 Owner: AWS
@@ -400,7 +422,7 @@ Resources:
               Configuration:
                 ProjectName: !Sub test-${ServiceName}-container
               InputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 1
+              RunOrder: 3
         -
           Name: ServiceDeploy
           Actions:
