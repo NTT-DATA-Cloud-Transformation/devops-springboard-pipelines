@@ -79,7 +79,7 @@ Resources:
       Family: !Ref ContainerName
       TaskRoleArn:
         Fn::If:
-          - TaskHasIamNoRole
+          - TaskHasNoIamRole
           - !Ref AWS::NoValue
           - !Ref TaskIamRoleArn
       ContainerDefinitions:
