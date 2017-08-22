@@ -126,6 +126,7 @@ Resources:
                         Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
+        - !Ref UserTaskIamPolicy # In case we need to pull from S3 to get an artifact stored there in the custom build step
   CodeBuildStandardPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
