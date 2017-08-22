@@ -127,7 +127,7 @@ Resources:
               - logs:PutLogEvents
               - ecr:GetAuthorizationToken
             Resource:
-              - '*' # TODO Narrow down to just the correct log group
+              - '*' 
           -
             Sid: AccessArtifactStore
             Effect: Allow
@@ -137,7 +137,7 @@ Resources:
               - s3:GetObjectVersion
             Resource:
               - !Sub
-                - 'arn:aws:s3:::${ARTIFACTS_BUCKET}/*' # Todo narrow down
+                - 'arn:aws:s3:::${ARTIFACTS_BUCKET}/*'
                 -
                   ARTIFACTS_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
