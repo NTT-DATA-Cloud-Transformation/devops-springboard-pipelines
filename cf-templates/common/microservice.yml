@@ -30,7 +30,7 @@ Parameters:
     Default: ""
 
 Conditions:
-  TaskHasIamRole:
+  TaskHasNoIamRole:
     !Equals
       - !Ref TaskIamRoleArn
       - ""
@@ -79,9 +79,9 @@ Resources:
       Family: !Ref ContainerName
       TaskRoleArn:
         Fn::If:
-          - TaskHasIamRole
+          - TaskHasIamNoRole
+          - !Ref AWS::NoValue
           - !Ref TaskIamRoleArn
-          - AWS::NoValue
       ContainerDefinitions:
         - Name: !Ref ContainerName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}:${ContainerTag}
