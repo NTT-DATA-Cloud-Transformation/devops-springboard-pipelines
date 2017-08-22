@@ -83,7 +83,19 @@ Resources:
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
         - !Ref UserTaskIamPolicy
-
+  UserTaskIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+      Path: /
+      ManagedPolicyArns:
+        - !Ref UserTaskIamPolicy
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -365,6 +377,7 @@ Resources:
                     "DesiredCount": "1",
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
-                    "LZStackPrefix": "${LZStackPrefix}"
+                    "LZStackPrefix": "${LZStackPrefix}",
+                    "TaskIamRoleArn": "${UserTaskIamRole}"
                   }
               InputArtifacts: [Name: 'BuildOutput']
