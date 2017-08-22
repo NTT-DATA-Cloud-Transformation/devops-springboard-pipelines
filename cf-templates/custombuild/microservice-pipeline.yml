@@ -207,7 +207,31 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub ${ServiceName}
-
+  CustomBuildProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and run ./buildspec.yml'
+      Name: !Sub custom-build-${ServiceName}-container
+      ServiceRole: !Ref CustomBuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:1.12.1"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: RESOURCE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+          - Name: RESOURCE_BUCKET_PATH
+            Value: !Sub /service/${ServiceName}/
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -249,6 +273,33 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+  CustomTestProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub '$Checkout container from ${Repository} and run any custom tests'
+      Name: !Sub custom-test-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: testspec.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:1.12.1"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: RESOURCE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+          - Name: RESOURCE_BUCKET_PATH
+            Value: !Sub /service/${ServiceName}/
+          - Name: BUILD_JSON
+            Value: build.json
   TestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
