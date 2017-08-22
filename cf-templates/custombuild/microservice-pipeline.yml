@@ -127,7 +127,7 @@ Resources:
               - logs:PutLogEvents
               - ecr:GetAuthorizationToken
             Resource:
-              - '*' 
+              - '*'
           -
             Sid: AccessArtifactStore
             Effect: Allow
@@ -141,6 +141,42 @@ Resources:
                 -
                   ARTIFACTS_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+  UserTaskIamPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: UserTaskIamPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Sid: AccessUserSpecificBucketPath
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetObjectVersion
+            Resource:
+              - !Sub
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}/service/${SERVICE_NAME}/*'
+                -
+                  RESOURCES_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+                  SERVICE_NAME: !Ref ServiceName
+          -
+            Sid: ListBucket
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}/*'
+                - RESOURCES_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+              - !Sub
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}/'
+                - RESOURCES_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
 
   Repository:
     Type: AWS::ECR::Repository
