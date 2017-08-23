@@ -366,12 +366,25 @@ Resources:
                 - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
                 - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/security/anchore_global.whitelist .
                 - docker cp anchore_global.whitelist anchore_cli:/root/.anchore/conf/
+                - echo create wrapper script for gate to hide warning
+                - echo '#!/bin/bash' >gate_runner.sh
+                - echo 'docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}' >>gate_runner.sh
+                - echo 'STATUS_CODE=$?' >>gate_runner.sh
+                - echo 'if [ $STATUS_CODE -eq "0" ]; then' >>gate_runner.sh
+                - echo '  echo Anchore gate passed' >>gate_runner.sh
+                - echo 'elif [ $STATUS_CODE -eq "2" ]' >>gate_runner.sh
+                - echo '  echo Anchore gate passed with warnings' >>gate_runner.sh
+                - echo 'else' >>gate_runner.sh
+                - echo '  exit $STATUS_CODE' >>gate_runner.sh
+                - echo 'fi' >>gate_runner.sh
+                - cat gate_runner.sh
+                - chmod u+x gate_runner.sh
             build:
               commands:
                 - echo Anchore started at `date`
                 - docker exec anchore_cli anchore feeds sync
                 - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
-                - docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}
+                - ./gate_runner.sh
             post_build:
               commands:
                 - echo Anchore completed at `date`
