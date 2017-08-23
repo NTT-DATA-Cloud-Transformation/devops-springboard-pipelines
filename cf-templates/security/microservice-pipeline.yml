@@ -372,7 +372,7 @@ Resources:
                 - echo 'STATUS_CODE=$?' >>gate_runner.sh
                 - echo 'if [ $STATUS_CODE -eq "0" ]; then' >>gate_runner.sh
                 - echo '  echo Anchore gate passed' >>gate_runner.sh
-                - echo 'elif [ $STATUS_CODE -eq "2" ]' >>gate_runner.sh
+                - echo 'elif [ $STATUS_CODE -eq "2" ]; then' >>gate_runner.sh
                 - echo '  echo Anchore gate passed with warnings' >>gate_runner.sh
                 - echo 'else' >>gate_runner.sh
                 - echo '  exit $STATUS_CODE' >>gate_runner.sh
