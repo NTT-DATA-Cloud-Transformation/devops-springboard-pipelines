@@ -359,18 +359,24 @@ Resources:
             pre_build:
               commands:
                 - echo Anchore setup started at `date`
+                - docker pull anchore/cli:latest
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
+                - $(aws ecr get-login)
                 - docker pull ${REPOSITORY_URI}:${TAG}
             build:
               commands:
                 - echo Anchore started at `date`
+                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
+                - docker exec anchore_cli anchore feeds sync
+                - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
+                - docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}
             post_build:
               commands:
                 - echo Anchore completed at `date`
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "anchore/cli:1.1.4"
+        Image: "aws/codebuild/docker:1.12.1"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
