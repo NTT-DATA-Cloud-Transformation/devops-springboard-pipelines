@@ -483,7 +483,7 @@ Resources:
               Configuration:
                 ProjectName: !Sub test-${ServiceName}-container
               InputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 3
+              RunOrder: 1
             -
               Name: AnchoreTest
               ActionTypeId:
