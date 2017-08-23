@@ -357,15 +357,18 @@ Resources:
             pre_build:
               commands:
                 - echo Anchore setup started at `date`
-                - docker pull anchore/cli:latest
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
                 - $(aws ecr get-login)
                 - docker pull ${REPOSITORY_URI}:${TAG}
+                - echo run Anchore daemon
+                - docker pull anchore/cli:latest
+                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/security/anchore_global.whitelist .
+                - docker cp anchore_global.whitelist anchore_cli:/root/.anchore/conf/
             build:
               commands:
                 - echo Anchore started at `date`
-                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
                 - docker exec anchore_cli anchore feeds sync
                 - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
                 - docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}
@@ -385,6 +388,9 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
+          - Name: TEMPLATE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
   VanillaPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
