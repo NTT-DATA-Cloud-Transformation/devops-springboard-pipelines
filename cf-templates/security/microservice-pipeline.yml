@@ -130,7 +130,6 @@ Resources:
   CodeBuildStandardPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
-      ManagedPolicyName: CodeBuildStandardPolicy
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -170,7 +169,6 @@ Resources:
   UserTaskIamPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
-      ManagedPolicyName: UserTaskIamPolicy
       PolicyDocument:
         Version: 2012-10-17
         Statement:
