@@ -126,7 +126,7 @@ Resources:
               - logs:PutLogEvents
               - ecr:GetAuthorizationToken
             Resource:
-              - '*' 
+              - '*'
           -
             Sid: AccessArtifactStore
             Effect: Allow
@@ -302,7 +302,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub ${LZStackPrefix}-${ServiceName}
+                StackName: !Sub w-deploy-${ServiceName}
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
                 RoleArn:
