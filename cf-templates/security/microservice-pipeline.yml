@@ -198,7 +198,7 @@ Resources:
                 - RESOURCES_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
               - !Sub
-                - 'arn:aws:s3:::${RESOURCES_BUCKET}/'
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}'
                 - RESOURCES_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
 
