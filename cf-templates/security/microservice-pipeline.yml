@@ -404,7 +404,7 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-  VanillaPipeline:
+  Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub ${LZStackPrefix}-${ServiceName}-pipeline

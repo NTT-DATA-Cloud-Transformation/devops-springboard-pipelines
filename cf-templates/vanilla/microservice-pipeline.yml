@@ -229,7 +229,7 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
-  VanillaPipeline:
+  Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub ${LZStackPrefix}-${ServiceName}-pipeline
