@@ -4,3 +4,6 @@ phases:
   build:
     commands: 
       - date
+    artifacts:
+      files:
+        - target/test.zip
