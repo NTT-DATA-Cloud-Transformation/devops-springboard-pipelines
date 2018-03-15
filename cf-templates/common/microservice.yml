@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template for microservies being deployed'
+Description: 'CloudFormation template for mohit microservies being deployed'
 Parameters:
   ContainerRepository:
     Description: Repository for getting the container
