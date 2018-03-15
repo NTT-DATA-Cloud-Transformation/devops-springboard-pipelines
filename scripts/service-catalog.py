@@ -10,6 +10,11 @@ import fnmatch
 import datetime, time
 
 
+def put_template_in_s3(client_s3,new_template_path):
+    new_template_path = PORTFOLIO_NAME+ "/" + new_template_path.split("/",1)[1]
+    response = client_s3.put_object(Bucket=BUCKET_NAME,Key=new_template_path)
+    print "new template with version {} uploaded to bucket".format(response['VersionId'])
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
     parser.add_argument('--role_arn', '-ra', help='Role Arn used for accessing AWS resources', required=True)
@@ -44,18 +49,19 @@ def create_connection():
 
 
 
-def create_product(client,product_name, temp_s3_url):
+def create_product(client,product_name,temp_s3_url):
+    print "creating product"
     response = client.create_product(Name=product_name,Owner="flux7",Description="ecs-wrokshop",Distributor="flux7",SupportDescription="to enhance the code pipeline to use the service catalog",
         SupportEmail=SUPPORT_EMAIL,
         SupportUrl=SUPPORT_URL,
         ProductType='CLOUD_FORMATION_TEMPLATE',
         ProvisioningArtifactParameters={
-            'Name':  VERSION,
+            'Name': VERSION,
             'Description': 'initial version',
             'Info': {
                 'LoadTemplateFromURL': temp_s3_url
             },
-            'Type': 'CLOUD_FORMATION_TEMPLATE'
+            'Type':'CLOUD_FORMATION_TEMPLATE'
         },
         #IdempotencyToken=product_name
     )
@@ -69,15 +75,16 @@ def create_product(client,product_name, temp_s3_url):
     return (product_id,product_version_id,product_version_name)
 
 
-def create_version_of_product(client,version,ver_desc, temp_s3_url,product_id,product_name,region):
+def create_version_of_product(client,version,temp_s3_url,product_id,product_name,region):
+    print "version=",version
+    print "temp_s3_url=",temp_s3_url
     response = client.create_provisioning_artifact(ProductId=product_id,
         Parameters={
             'Name': version,
-            'Description': ver_desc,
             'Info': {
                 'LoadTemplateFromURL': temp_s3_url
             },
-            'Type': 'CLOUD_FORMATION_TEMPLATE'
+            'Type':'CLOUD_FORMATION_TEMPLATE'
         },
         #IdempotencyToken=version
     )
@@ -112,20 +119,27 @@ def associate_role_with_portfolio(client,portfolio_id):
     )
     print "role arn {} is associated with portfolio {}".format(ROLE_ARN,portfolio_id)
 
-def compare_templates(conn,template_utl):
+def compare_templates(conn,template_url,product_name,product_template):
     client_s3 = conn[2]
-    object_info_list=template_utl.split("/",4)
+    object_info_list=template_url.split("/",4)
     bucket=object_info_list[3]
     key=object_info_list[4]
     print bucket
     print key
-    with open('/tmp/temp_template.yml', 'wb') as data:
+    with open('temp_template.yml', 'wb') as data:
         client_s3.download_fileobj(bucket,key, data)
 
-    with open('test.yml') as f1, open('test1.yml') as f2:
+    old_template_path = 'temp_template.yml'
+    new_template_path = '../cf-templates/{}/{}'.format(product_name,product_template)
+    diff_set=set()
+    with open(new_template_path) as f1, open(old_template_path) as f2:
         difference = set(f1).difference(f2)
 
     print difference
+    if difference == diff_set:
+        return (False,old_template_path)
+    else:
+        return (True,new_template_path)
 
 def get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id):
     response = ser_cat_clt_conn.describe_provisioning_artifact(ProvisioningArtifactId=latest_version_id,ProductId=product_id)
@@ -153,7 +167,7 @@ def portfolio(ser_cat_clt_conn,region):
 
     return portfolio_id
 
-def main(temp_s3_url,product_name,conn):
+def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
     ser_cat_clt_conn = conn[0]
     region = conn[1]
     client_s3 = conn[2]
@@ -161,7 +175,6 @@ def main(temp_s3_url,product_name,conn):
     """TO create product
     """
     response = ser_cat_clt_conn.search_products()
-
     for product in response['ProductViewSummaries']:
         if product['Name'] == product_name:
             product_id =  product['ProductId']
@@ -178,7 +191,18 @@ def main(temp_s3_url,product_name,conn):
             print latest_version_name
             template_utl = get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id)
             print template_utl
-            compare_templates(conn,template_utl)
+            comp_status = compare_templates(conn,template_utl,product_name,product_template)
+            print comp_status
+            # create version of product if template changed
+            if comp_status[0] == True:
+                global VERSION
+                VERSION = "v"+str(float(latest_version_name.split("v")[1])+.1)
+                print VERSION
+                # upload new template to bucket for new version
+                put_template_in_s3(client_s3,comp_status[1])
+                create_version_of_product(ser_cat_clt_conn,VERSION,temp_s3_url,product_id,product_name,region)
+            break
+
             """
             for version in version_response['ProvisioningArtifacts']:
                 if "v1.0.0" == version['Name']:
@@ -188,15 +212,15 @@ def main(temp_s3_url,product_name,conn):
                 #To create New  Version of  existing product
                 create_version_of_product(ser_cat_clt_conn,"v1.0.0",ARGS.version_desc,temp_s3_url,product_id,product_name,region)
             break
+            """
 
     else:
         product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,temp_s3_url)
         print "product {} created in region {} with version {}".format(product_name,region,product_version_name)
-        #TO associate role with portfolio
+        #TO associate the product with portfolio
         attach_product_to_portfolio(ser_cat_clt_conn,product_id,portfolio_id)
         print "product {} attached with portfolio {}".format(product_name,PORTFOLIO_NAME)
 
-    """
 
 
 
@@ -210,17 +234,21 @@ if __name__ == "__main__":
     print product_name_list
     ROLE_ARN = ARGS.role_arn
     SUPPORT_URL ='https://www.flux7.com'
-    VERSION = 1.0
+    VERSION = "v1.0"
     conn = create_connection()
     ser_cat_clt_conn = conn[0]
     region = conn[1]
     client_s3 = conn[2]
 
-    portfolio(ser_cat_clt_conn,region)
+    portfolio_id = portfolio(ser_cat_clt_conn,region)
+    # attach role with portfolio
+    associate_role_with_portfolio(ser_cat_clt_conn,portfolio_id)
 
     for product_name in product_name_list:
         product_template=fnmatch.filter(os.listdir('../cf-templates/{}'.format(product_name)), '*.yml')[0]
         product_temp_s3_url='{}/{}/{}'.format(client_s3.meta.endpoint_url,BUCKET_NAME,"{}/cf-templates/{}/{}".format(BUCKET_PATH,product_name,product_template))
         print "product_name={}".format(product_name)
         print "product template name={}/{}\n".format(product_name,product_template)
-        main(product_temp_s3_url,product_name,conn)
+        main(product_temp_s3_url,product_name,conn,product_template,portfolio_id)
+
+
