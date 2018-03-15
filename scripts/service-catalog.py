@@ -12,8 +12,9 @@ import datetime, time
 
 def put_template_in_s3(client_s3,new_template_path):
     new_template_path = PORTFOLIO_NAME+ "/" + new_template_path.split("/",1)[1]
-    response = client_s3.put_object(Bucket=BUCKET_NAME,Key=new_template_path)
+    response = client_s3.put_object( Body=new_template_path,Bucket=BUCKET_NAME,Key=new_template_path + "?git-hash=" +os.environ['CODEBUILD_SOURCE_VERSION'])
     print "new template with version {} uploaded to bucket".format(response['VersionId'])
+    return response['VersionId']
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
@@ -43,8 +44,8 @@ def create_connection():
     if ROLE_ARN:
         session = assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[0]
         region= assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[1]
-        client = session.client('servicecatalog')
-        client_s3 = session.client('s3')
+        client = session.client('servicecatalog',region_name=region)
+        client_s3 = session.client('s3',region_name=region)
     return (client,region,client_s3)
 
 
@@ -77,12 +78,14 @@ def create_product(client,product_name,temp_s3_url):
 
 def create_version_of_product(client,version,temp_s3_url,product_id,product_name,region):
     print "version=",version
-    print "temp_s3_url=",temp_s3_url
+    end_point_of_template= "?git-hash=" + os.environ['CODEBUILD_SOURCE_VERSION']
+
+    print "URL=",temp_s3_url+end_point_of_template
     response = client.create_provisioning_artifact(ProductId=product_id,
         Parameters={
             'Name': version,
             'Info': {
-                'LoadTemplateFromURL': temp_s3_url
+                'LoadTemplateFromURL': temp_s3_url+end_point_of_template
             },
             'Type':'CLOUD_FORMATION_TEMPLATE'
         },
@@ -199,8 +202,8 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
                 VERSION = "v"+str(float(latest_version_name.split("v")[1])+.1)
                 print VERSION
                 # upload new template to bucket for new version
-                put_template_in_s3(client_s3,comp_status[1])
-                create_version_of_product(ser_cat_clt_conn,VERSION,temp_s3_url,product_id,product_name,region)
+                template_version_from_s3 = put_template_in_s3(client_s3,comp_status[1])
+                create_version_of_product(ser_cat_clt_conn,VERSION,template_utl,product_id,product_name,region)
             break
 
             """

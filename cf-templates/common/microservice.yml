@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template for mohit microservies being deployed'
+Description: 'CloudFormation template for microservies being deployed'
 Parameters:
   ContainerRepository:
     Description: Repository for getting the container
@@ -9,10 +9,10 @@ Parameters:
     Description: Name for container used in various places
     Type: String
   ContainerTag:
-    Description: 'Container tag being deployed'
+    Description: Container tag being deployed
     Type: 'String'
   DesiredCount:
-    Description: 'Number of tasks to deploy'
+    Description: Number of tasks to deploy
     Type: Number
     Default: 1
   ListenerPriority:

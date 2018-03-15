@@ -4,7 +4,7 @@ Description: Cloudformation for deploying ecs-service
 
 Parameters:
   LZStackPrefix:
-    Description: 'Prefix to find values from landing zone'
+    Description: Prefix to find values from landing zone
     Type: String
   GitHubUser:
     Description: 'GitHub UserName'

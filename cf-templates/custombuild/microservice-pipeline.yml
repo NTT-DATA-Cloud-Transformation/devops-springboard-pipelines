@@ -4,7 +4,7 @@ Description: Cloudformation for deploying ecs-service with a custom build and te
 
 Parameters:
   LZStackPrefix:
-    Description: 'Prefix to find values from landing zone'
+    Description: Prefix to find values from landing zone
     Type: String
   GitHubUser:
     Description: 'GitHub UserName'
@@ -23,7 +23,7 @@ Parameters:
     Description: 'Priority in ALB'
     Type: Number
   ListenerPath:
-    Description: 'Path on which Microservice is deployed'
+    Description: 'Path on which microservice is deployed'
     Type: 'String'
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
