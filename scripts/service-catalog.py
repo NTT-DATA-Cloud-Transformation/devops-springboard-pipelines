@@ -11,10 +11,14 @@ import datetime, time
 
 
 def put_template_in_s3(client_s3,new_template_path):
+    ntp=new_template_path
     new_template_path = PORTFOLIO_NAME+ "/" + new_template_path.split("/",1)[1]
-    response = client_s3.put_object( Body=new_template_path,Bucket=BUCKET_NAME,Key=new_template_path + "?git-hash=" +os.environ['CODEBUILD_SOURCE_VERSION'])
+    filename_without_ext=new_template_path.split(".")[0]
+    print "path for putting--------------{}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml")
+    response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml")
     print "new template with version {} uploaded to bucket".format(response['VersionId'])
-    return response['VersionId']
+    upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml"
+    return (response['VersionId'],upload_path)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
@@ -76,16 +80,17 @@ def create_product(client,product_name,temp_s3_url):
     return (product_id,product_version_id,product_version_name)
 
 
-def create_version_of_product(client,version,temp_s3_url,product_id,product_name,region):
+def create_version_of_product(client,version,temp_s3_url,product_id,product_name,region,client_s3):
     print "version=",version
-    end_point_of_template= "?git-hash=" + os.environ['CODEBUILD_SOURCE_VERSION']
-
-    print "URL=",temp_s3_url+end_point_of_template
+    url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + temp_s3_url
+    #end_point_of_template= "-git-hash-" + os.environ['CODEBUILD_SOURCE_VERSION']+".yml"
+    #main_url= temp_s3_url.split(".yml")[0]
+    print "URL=",url
     response = client.create_provisioning_artifact(ProductId=product_id,
         Parameters={
             'Name': version,
             'Info': {
-                'LoadTemplateFromURL': temp_s3_url+end_point_of_template
+                'LoadTemplateFromURL': url
             },
             'Type':'CLOUD_FORMATION_TEMPLATE'
         },
@@ -126,7 +131,7 @@ def compare_templates(conn,template_url,product_name,product_template):
     client_s3 = conn[2]
     object_info_list=template_url.split("/",4)
     bucket=object_info_list[3]
-    key=object_info_list[4]
+    key=object_info_list[4].split(".yml")[0]+".yml"
     print bucket
     print key
     with open('temp_template.yml', 'wb') as data:
@@ -140,8 +145,10 @@ def compare_templates(conn,template_url,product_name,product_template):
 
     print difference
     if difference == diff_set:
+        print False,old_template_path
         return (False,old_template_path)
     else:
+        print True,new_template_path
         return (True,new_template_path)
 
 def get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id):
@@ -193,17 +200,19 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             print latest_version_id
             print latest_version_name
             template_utl = get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id)
-            print template_utl
+            print "product_template=",product_template
+
             comp_status = compare_templates(conn,template_utl,product_name,product_template)
-            print comp_status
+
             # create version of product if template changed
             if comp_status[0] == True:
                 global VERSION
                 VERSION = "v"+str(float(latest_version_name.split("v")[1])+.1)
                 print VERSION
                 # upload new template to bucket for new version
-                template_version_from_s3 = put_template_in_s3(client_s3,comp_status[1])
-                create_version_of_product(ser_cat_clt_conn,VERSION,template_utl,product_id,product_name,region)
+                template_info = put_template_in_s3(client_s3,comp_status[1])
+                create_version_of_product(ser_cat_clt_conn,VERSION,template_info[1],product_id,product_name,region,client_s3)
+
             break
 
             """
@@ -233,7 +242,8 @@ if __name__ == "__main__":
     BUCKET_NAME = "platform-test-devops-us-west-2"
     BUCKET_PATH = "ecs-workshop"
     PORTFOLIO_NAME = "ecs-workshop"
-    product_name_list=os.listdir('../cf-templates')
+    #product_name_list=os.listdir('../cf-templates')
+    product_name_list= ["common","custombuild"]
     print product_name_list
     ROLE_ARN = ARGS.role_arn
     SUPPORT_URL ='https://www.flux7.com'
