@@ -3,14 +3,14 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CloudFormation template for microservies being deployed'
 Parameters:
   ContainerRepository:
-    Description: 'Repository for getting the container mohit kumar sharma'
+    Description: Repository for getting the container
     Type: String
   ContainerName:
-    Description: 'Name mohit kumar sharma for container used in various places'
+    Description: Name  for container used in various places
     Type: String
   ContainerTag:
     Description: Container tag being deployed
-    Type: 'String'
+    Type: String
   DesiredCount:
     Description: Number of tasks to deploy
     Type: Number

@@ -5,4 +5,3 @@ phases:
     commands: 
       - date
       - env
-      - date

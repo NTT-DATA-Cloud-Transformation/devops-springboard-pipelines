@@ -56,6 +56,8 @@ def create_connection():
 
 def create_product(client,product_name,temp_s3_url):
     print "creating product"
+    print temp_s3_url
+    print VERSION
     response = client.create_product(Name=product_name,Owner="flux7",Description="ecs-wrokshop",Distributor="flux7",SupportDescription="to enhance the code pipeline to use the service catalog",
         SupportEmail=SUPPORT_EMAIL,
         SupportUrl=SUPPORT_URL,
@@ -239,15 +241,15 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 if __name__ == "__main__":
     ARGS = parse_arguments()
     SUPPORT_EMAIL = "mohit@flux7.com"
-    BUCKET_NAME = "platform-test-devops-us-west-2"
+    BUCKET_NAME = "platform-test-audit-us-west-2"
     BUCKET_PATH = "ecs-workshop"
     PORTFOLIO_NAME = "ecs-workshop"
-    #product_name_list=os.listdir('../cf-templates')
-    product_name_list= ["common","custombuild"]
+    product_name_list=os.listdir('../cf-templates')
+    #product_name_list= ["common","custombuild"]
     print product_name_list
     ROLE_ARN = ARGS.role_arn
     SUPPORT_URL ='https://www.flux7.com'
-    VERSION = "v1.0"
+
     conn = create_connection()
     ser_cat_clt_conn = conn[0]
     region = conn[1]
@@ -258,6 +260,7 @@ if __name__ == "__main__":
     associate_role_with_portfolio(ser_cat_clt_conn,portfolio_id)
 
     for product_name in product_name_list:
+        VERSION = "v1.0"
         product_template=fnmatch.filter(os.listdir('../cf-templates/{}'.format(product_name)), '*.yml')[0]
         product_temp_s3_url='{}/{}/{}'.format(client_s3.meta.endpoint_url,BUCKET_NAME,"{}/cf-templates/{}/{}".format(BUCKET_PATH,product_name,product_template))
         print "product_name={}".format(product_name)
