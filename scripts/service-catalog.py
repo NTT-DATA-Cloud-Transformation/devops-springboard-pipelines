@@ -23,8 +23,14 @@ def put_template_in_s3(client_s3,new_template_path):
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
     parser.add_argument('--role_arn', '-ra', help='Role Arn used for accessing AWS resources', required=True)
+    parser.add_argument('--support_email', '-se', help='Support email for the service catalog products and portfolio', required=True)
+    parser.add_argument('--bucket_name', '-bn', help='Bucket name for storing templates for products of service catalog', required=True)
+    parser.add_argument('--bucket_path', '-bp', help='S3 bucket folder path for storing templates for products of service catalog like workshop/ecs-workshop', required=True)
+    parser.add_argument('--portfolio_name', '-pn', help='Potfolio name under to which products are associated', required=True)
+    parser.add_argument('--support_url', '-su', help='Support Url with http/https  like https://www.flux7.com ', required=True)
     args = parser.parse_args()
     return args
+
 
 def assumed_temp_session(role_arn,session_name):
     session = Session()
@@ -201,10 +207,10 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             latest_version_name= vdict[max(vdict.keys())]
             print latest_version_id
             print latest_version_name
-            template_utl = get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id)
+            template_latest = get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id)
             print "product_template=",product_template
 
-            comp_status = compare_templates(conn,template_utl,product_name,product_template)
+            comp_status = compare_templates(conn,template_latest,product_name,product_template)
 
             # create version of product if template changed
             if comp_status[0] == True:
@@ -240,15 +246,15 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
 if __name__ == "__main__":
     ARGS = parse_arguments()
-    SUPPORT_EMAIL = "mohit@flux7.com"
-    BUCKET_NAME = "platform-test-audit-us-west-2"
-    BUCKET_PATH = "ecs-workshop"
-    PORTFOLIO_NAME = "ecs-workshop"
+    SUPPORT_EMAIL = ARGS.support_email
+    BUCKET_NAME = ARGS.bucket_name
+    BUCKET_PATH = ARGS.bucket_path
+    PORTFOLIO_NAME = ARGS.portfolio_name
     product_name_list=os.listdir('../cf-templates')
     #product_name_list= ["common","custombuild"]
     print product_name_list
     ROLE_ARN = ARGS.role_arn
-    SUPPORT_URL ='https://www.flux7.com'
+    SUPPORT_URL = ARGS.support_url
 
     conn = create_connection()
     ser_cat_clt_conn = conn[0]
