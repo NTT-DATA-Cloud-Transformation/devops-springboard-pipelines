@@ -215,7 +215,7 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             # create version of product if template changed
             if comp_status[0] == True:
                 global VERSION
-                VERSION = "v"+str(float(latest_version_name.split("v")[1])+.1)
+                VERSION = "v"+str(float(latest_version_name.split("v")[1])+1)
                 print VERSION
                 # upload new template to bucket for new version
                 template_info = put_template_in_s3(client_s3,comp_status[1])
