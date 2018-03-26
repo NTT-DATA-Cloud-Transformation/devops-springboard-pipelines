@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from botocore.credentials import RefreshableCredentials
-from botocore.session import get_session
-from boto3 import Session
-#import boto3
+#from botocore.credentials import RefreshableCredentials
+#from botocore.session import get_session
+#from boto3 import Session
+import boto3
 import argparse
 import random
 import os
@@ -32,7 +32,7 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-#"""
+"""
 def assumed_temp_session(role_arn,session_name):
     session = Session()
     def refresh():
@@ -50,20 +50,20 @@ def assumed_temp_session(role_arn,session_name):
     region = session._session.get_config_variable('region') or 'us-east-1'
     s.set_config_variable('region', region)
     return (Session(botocore_session=s),region)
-#"""
+"""
 
 def create_connection():
-    #client_service_catalog = boto3.client('servicecatalog',region_name=REGION)
-    #client_s3= boto3.client('s3',region_name=REGION)
-    #"""
+    client_service_catalog = boto3.client('servicecatalog',region_name=REGION)
+    client_s3= boto3.client('s3',region_name=REGION)
+    """
     if ROLE_ARN:
         session = assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[0]
         region= assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[1]
         client = session.client('servicecatalog',region_name=region)
         client_s3 = session.client('s3',region_name=region)   
     return (client,region,client_s3)
-    #"""
-    #return(client_service_catalog,REGION,client_s3)
+    """
+    return(client_service_catalog,REGION,client_s3)
 
 
 
