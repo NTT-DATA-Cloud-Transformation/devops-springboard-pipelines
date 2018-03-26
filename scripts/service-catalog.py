@@ -71,6 +71,11 @@ def create_product(client,product_name,temp_s3_url):
     print "creating product"
     print temp_s3_url
     print VERSION
+    print product_name
+    print SUPPORT_EMAIL
+    print SUPPORT_URL
+    print VERSION
+
     response = client.create_product(Name=product_name,Owner="flux7",Description="ecs-wrokshop",Distributor="flux7",SupportDescription="to enhance the code pipeline to use the service catalog",
         SupportEmail=SUPPORT_EMAIL,
         SupportUrl=SUPPORT_URL,
