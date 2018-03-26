@@ -83,13 +83,10 @@ def create_product(client,product_name,temp_s3_url):
         ProvisioningArtifactParameters={
             'Name': VERSION,
             'Description': 'initial version',
-            'Info': {
-                'LoadTemplateFromURL': temp_s3_url
-            },
+            'Info': {'LoadTemplateFromURL': temp_s3_url},
             'Type':'CLOUD_FORMATION_TEMPLATE'
         }
-        
-    )
+        )
     if  response['ProductViewDetail']['Status'] == 'CREATED':
         print "product creation successful "
 
