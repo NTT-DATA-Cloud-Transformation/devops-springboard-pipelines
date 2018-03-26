@@ -146,7 +146,7 @@ def compare_templates(conn,template_url,product_name,product_template):
         client_s3.download_fileobj(bucket,key, data)
 
     old_template_path = 'temp_template.yml'
-    new_template_path = '../cf-templates/{}/{}'.format(product_name,product_template)
+    new_template_path = 'cf-templates/{}/{}'.format(product_name,product_template)
     diff_set=set()
     with open(new_template_path) as f1, open(old_template_path) as f2:
         difference = set(f1).difference(f2)
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     BUCKET_NAME = ARGS.bucket_name
     BUCKET_PATH = ARGS.bucket_path
     PORTFOLIO_NAME = ARGS.portfolio_name
-    product_name_list=os.listdir('../cf-templates')
+    product_name_list=os.listdir('cf-templates')
     #product_name_list= ["common","custombuild"]
     print product_name_list
     ROLE_ARN = ARGS.role_arn
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     for product_name in product_name_list:
         VERSION = "v1.0"
-        product_template=fnmatch.filter(os.listdir('../cf-templates/{}'.format(product_name)), '*.yml')[0]
+        product_template=fnmatch.filter(os.listdir('cf-templates/{}'.format(product_name)), '*.yml')[0]
         product_temp_s3_url='{}/{}/{}'.format(client_s3.meta.endpoint_url,BUCKET_NAME,"{}/cf-templates/{}/{}".format(BUCKET_PATH,product_name,product_template))
         print "product_name={}".format(product_name)
         print "product template name={}/{}\n".format(product_name,product_template)
