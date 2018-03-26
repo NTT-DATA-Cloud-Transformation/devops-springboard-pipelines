@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from botocore.credentials import RefreshableCredentials
-from botocore.session import get_session
-from boto3 import Session
+#from botocore.credentials import RefreshableCredentials
+#from botocore.session import get_session
+#from boto3 import Session
+import boto3
 import argparse
 import random
 import os
@@ -22,7 +23,7 @@ def put_template_in_s3(client_s3,new_template_path):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
-    parser.add_argument('--role_arn', '-ra', help='Role Arn used for accessing AWS resources', required=True)
+    #parser.add_argument('--role_arn', '-ra', help='Role Arn used for accessing AWS resources', required=True)
     parser.add_argument('--support_email', '-se', help='Support email for the service catalog products and portfolio', required=True)
     parser.add_argument('--bucket_name', '-bn', help='Bucket name for storing templates for products of service catalog', required=True)
     parser.add_argument('--bucket_path', '-bp', help='S3 bucket folder path for storing templates for products of service catalog like workshop/ecs-workshop', required=True)
@@ -31,7 +32,7 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-
+"""
 def assumed_temp_session(role_arn,session_name):
     session = Session()
     def refresh():
@@ -49,14 +50,20 @@ def assumed_temp_session(role_arn,session_name):
     region = session._session.get_config_variable('region') or 'us-east-1'
     s.set_config_variable('region', region)
     return (Session(botocore_session=s),region)
+"""
 
 def create_connection():
+    client_service_catalog = boto3.client('servicecatalog',region_name=REGION)
+    client_s3= boto3.client('s3',region_name=REGION)
+    """
     if ROLE_ARN:
         session = assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[0]
         region= assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[1]
         client = session.client('servicecatalog',region_name=region)
-        client_s3 = session.client('s3',region_name=region)
+        client_s3 = session.client('s3',region_name=region)   
     return (client,region,client_s3)
+    """
+    return(client_service_catalog,REGION,client_s3)
 
 
 
@@ -251,6 +258,7 @@ if __name__ == "__main__":
     BUCKET_PATH = ARGS.bucket_path
     PORTFOLIO_NAME = ARGS.portfolio_name
     product_name_list=os.listdir('cf-templates')
+    REGION = os.environ['AWS_DEFAULT_REGION']
     #product_name_list= ["common","custombuild"]
     print product_name_list
     ROLE_ARN = ARGS.role_arn
