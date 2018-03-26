@@ -261,7 +261,7 @@ if __name__ == "__main__":
     REGION = os.environ['AWS_DEFAULT_REGION']
     #product_name_list= ["common","custombuild"]
     print product_name_list
-    ROLE_ARN = ARGS.role_arn
+    ROLE_ARN = os.environ['PORTFOLIO_ROLE_ARN']
     SUPPORT_URL = ARGS.support_url
 
     conn = create_connection()
