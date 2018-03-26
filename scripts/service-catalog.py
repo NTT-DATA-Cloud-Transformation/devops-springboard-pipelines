@@ -87,8 +87,8 @@ def create_product(client,product_name,temp_s3_url):
                 'LoadTemplateFromURL': temp_s3_url
             },
             'Type':'CLOUD_FORMATION_TEMPLATE'
-        },
-        #IdempotencyToken=product_name
+        }
+        
     )
     if  response['ProductViewDetail']['Status'] == 'CREATED':
         print "product creation successful "
