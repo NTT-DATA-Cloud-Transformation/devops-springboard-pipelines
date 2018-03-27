@@ -253,7 +253,11 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             """
 
     else:
-        product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,temp_s3_url)
+        template_info = put_template_in_s3(client_s3,"cf-templates/{}/{}".format(product_name,product_template))
+        url_path_without_s3_end_point=template_info[1]
+        s3_url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + url_path_without_s3_end_point
+
+        product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,s3_url)
         print "product {} created in region {} with version {}".format(product_name,region,product_version_name)
         #TO associate the product with portfolio
         attach_product_to_portfolio(ser_cat_clt_conn,product_id,portfolio_id)
