@@ -18,11 +18,11 @@ def put_template_in_s3(client_s3,new_template_path):
     print new_template_path
     filename_without_ext=new_template_path.split(".")[0]
     print filename_without_ext
-    print "path for putting--------------{}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml")
-    response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml")
-    print "new template with version {} uploaded to bucket".format(response['VersionId'])
-    upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml"
-    return (response['VersionId'],upload_path)
+    print "path for putting--------------{}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml")
+    response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml")
+    print "new template uploaded to bucket"
+    upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml"
+    return upload_path
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
@@ -237,7 +237,7 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
                 print VERSION
                 # upload new template to bucket for new version
                 template_info = put_template_in_s3(client_s3,comp_status[1])
-                create_version_of_product(ser_cat_clt_conn,VERSION,template_info[1],product_id,product_name,region,client_s3)
+                create_version_of_product(ser_cat_clt_conn,VERSION,template_info,product_id,product_name,region,client_s3)
 
             break
 
@@ -254,7 +254,7 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
     else:
         template_info = put_template_in_s3(client_s3,"cf-templates/{}/{}".format(product_name,product_template))
-        url_path_without_s3_end_point=template_info[1]
+        url_path_without_s3_end_point=template_info
         s3_url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + url_path_without_s3_end_point
 
         product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,s3_url)
