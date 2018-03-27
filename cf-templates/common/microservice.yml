@@ -6,7 +6,7 @@ Parameters:
     Description: Repository for getting the container
     Type: String
   ContainerName:
-    Description: Name for container used in various places for mohit
+    Description: Name for container used in various places for mohit sharma
     Type: String
   ContainerTag:
     Description: Container tag being deployed
