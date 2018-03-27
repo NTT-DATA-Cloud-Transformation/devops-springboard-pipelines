@@ -135,7 +135,7 @@ def attach_product_to_portfolio(client,product_id,portfolio_id):
         ProductId=product_id,
         PortfolioId=portfolio_id,
     )
-
+"""
 def associate_role_with_portfolio(client,portfolio_id):
     response = client.associate_principal_with_portfolio(
         PortfolioId=portfolio_id,
@@ -143,7 +143,7 @@ def associate_role_with_portfolio(client,portfolio_id):
         PrincipalType='IAM'
     )
     print "role arn {} is associated with portfolio {}".format(ROLE_ARN,portfolio_id)
-
+"""
 def compare_templates(conn,template_url,product_name,product_template):
     client_s3 = conn[2]
     object_info_list=template_url.split("/",4)
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     REGION = os.environ['AWS_DEFAULT_REGION']
     #product_name_list= ["common","custombuild"]
     print product_name_list
-    ROLE_ARN = os.environ['PORTFOLIO_ROLE_ARN']
+    #ROLE_ARN = os.environ['PORTFOLIO_ROLE_ARN']
     SUPPORT_URL = ARGS.support_url
 
     conn = create_connection()
