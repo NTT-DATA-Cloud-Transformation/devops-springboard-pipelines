@@ -168,7 +168,7 @@ def compare_templates(conn,template_url,product_name,product_template):
         print True,new_template_path
         return (True,new_template_path)
 
-def get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id):
+def get_latest_version_template_from_product(ser_cat_clt_conn,latest_version_id,product_id):
     response = ser_cat_clt_conn.describe_provisioning_artifact(ProvisioningArtifactId=latest_version_id,ProductId=product_id)
     print "latest template = {}".format(response['Info']['TemplateUrl'])
     return response['Info']['TemplateUrl']
@@ -207,18 +207,22 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
         print "{0} found".format(product['ProductViewSummary']['Name'])
         if product['ProductViewSummary']['Name'] == product_name:
             product_id =  product['ProductViewSummary']['ProductId']
+            print "product_id={}".format(product_id)
             version_response = ser_cat_clt_conn.describe_product_as_admin(Id=product_id)
             tdict= {}
             vdict= {}
+
+
             for version in  version_response['ProvisioningArtifactSummaries']:
                 tdict[time.mktime(version['CreatedTime'].timetuple())]=version['Id']
                 vdict[time.mktime(version['CreatedTime'].timetuple())]=version['Name']
 
-            latest_version_id= tdict[max(tdict.keys())]
-            latest_version_name= vdict[max(vdict.keys())]
-            print latest_version_id
-            print latest_version_name
-            template_latest = get_latest_version_template(ser_cat_clt_conn,latest_version_id,product_id)
+
+            product_latest_version_id= tdict[max(tdict.keys())]
+            product_latest_version_name= vdict[max(vdict.keys())]
+            print product_latest_version_id
+            print product_latest_version_name
+            template_latest = get_latest_version_template_from_product(ser_cat_clt_conn,product_latest_version_id,product_id)
             print "product_template=",product_template
 
             comp_status = compare_templates(conn,template_latest,product_name,product_template)
