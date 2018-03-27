@@ -77,16 +77,16 @@ def create_product(client,product_name,temp_s3_url):
 
 
     response = client.create_product(Name=product_name,Owner="flux7",Description="ecs-wrokshop",Distributor="flux7",SupportDescription="to enhance the code pipeline to use the service catalog",
-        SupportEmail=SUPPORT_EMAIL,
-        SupportUrl=SUPPORT_URL,
-        ProductType='CLOUD_FORMATION_TEMPLATE',
-        ProvisioningArtifactParameters={
-            'Name': VERSION,
-            'Description': 'initial version',
-            'Info': {'LoadTemplateFromURL': temp_s3_url },
-            'Type':'CLOUD_FORMATION_TEMPLATE'
-        }
-        )
+                                     SupportEmail=SUPPORT_EMAIL,
+                                     SupportUrl=SUPPORT_URL,
+                                     ProductType='CLOUD_FORMATION_TEMPLATE',
+                                     ProvisioningArtifactParameters={
+                                         'Name': VERSION,
+                                         'Description': 'initial version',
+                                         'Info': {'LoadTemplateFromURL': temp_s3_url },
+                                         'Type':'CLOUD_FORMATION_TEMPLATE'
+                                     }
+                                     )
     if  response['ProductViewDetail']['Status'] == 'CREATED':
         print "product creation successful "
 
@@ -104,15 +104,15 @@ def create_version_of_product(client,version,temp_s3_url,product_id,product_name
     #main_url= temp_s3_url.split(".yml")[0]
     print "URL=",url
     response = client.create_provisioning_artifact(ProductId=product_id,
-        Parameters={
-            'Name': version,
-            'Info': {
-                'LoadTemplateFromURL': url
-            },
-            'Type':'CLOUD_FORMATION_TEMPLATE'
-        },
-        #IdempotencyToken=version
-    )
+                                                   Parameters={
+                                                       'Name': version,
+                                                       'Info': {
+                                                           'LoadTemplateFromURL': url
+                                                       },
+                                                       'Type':'CLOUD_FORMATION_TEMPLATE'
+                                                   },
+                                                   #IdempotencyToken=version
+                                                   )
 
     print "new version  {} created for product {} in region {}".format(version,product_name,region)
 
@@ -201,11 +201,13 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
     """TO create product
     """
-    response = ser_cat_clt_conn.search_products()
-    for product in response['ProductViewSummaries']:
-        if product['Name'] == product_name:
-            product_id =  product['ProductId']
-            version_response = ser_cat_clt_conn.describe_product(Id=product_id)
+    response = ser_cat_clt_conn.search_products_as_admin(PortfolioId=portfolio_id)
+    #print response['ProductViewDetails']
+    for product in response['ProductViewDetails']:
+        print "{0} found".format(product['ProductViewSummary']['Name'])
+        if product['ProductViewSummary']['Name'] == product_name:
+            product_id =  product['ProductViewSummary']['ProductId']
+            version_response = ser_cat_clt_conn.describe_product_as_admin(Id=product_id)
             tdict= {}
             vdict= {}
             for version in  version_response['ProvisioningArtifacts']:
