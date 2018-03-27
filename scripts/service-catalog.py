@@ -285,6 +285,7 @@ if __name__ == "__main__":
         VERSION = "v1.0"
         product_template=fnmatch.filter(os.listdir('cf-templates/{}'.format(product_name)), '*.yml')[0]
         product_temp_s3_url='{}/{}/{}'.format(client_s3.meta.endpoint_url,BUCKET_NAME,"{}/cf-templates/{}/{}".format(BUCKET_PATH,product_name,product_template))
+        print product_temp_s3_url
         print "product_name={}".format(product_name)
         print "product template name={}/{}\n".format(product_name,product_template)
         main(product_temp_s3_url,product_name,conn,product_template,portfolio_id)
