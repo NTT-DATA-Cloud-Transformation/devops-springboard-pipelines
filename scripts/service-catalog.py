@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
     portfolio_id = portfolio(ser_cat_clt_conn,region)
     # attach role with portfolio
-    associate_role_with_portfolio(ser_cat_clt_conn,portfolio_id)
+    #associate_role_with_portfolio(ser_cat_clt_conn,portfolio_id)
 
     for product_name in product_name_list:
         VERSION = "v1.0"
