@@ -14,7 +14,7 @@ import datetime, time
 def put_template_in_s3(client_s3,new_template_path):
     ntp=new_template_path
     print new_template_path
-    new_template_path = PORTFOLIO_NAME+ "/" + new_template_path.split("/",1)[1]
+    new_template_path = BUCKET_PATH+ "/" + new_template_path
     print new_template_path
     filename_without_ext=new_template_path.split(".")[0]
     print filename_without_ext
