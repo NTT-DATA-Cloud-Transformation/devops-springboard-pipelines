@@ -14,7 +14,9 @@ import datetime, time
 def put_template_in_s3(client_s3,new_template_path):
     ntp=new_template_path
     new_template_path = PORTFOLIO_NAME+ "/" + new_template_path.split("/",1)[1]
+    print new_template_path
     filename_without_ext=new_template_path.split(".")[0]
+    print filename_without_ext
     print "path for putting--------------{}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml")
     response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_SOURCE_VERSION']+".yml")
     print "new template with version {} uploaded to bucket".format(response['VersionId'])
