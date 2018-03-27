@@ -201,12 +201,10 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
     """TO create product
     """
-    response = ser_cat_clt_conn.search_products_as_admin(PortfolioId=portfolio_id)
-    #print response['ProductViewDetails']
-    for product in response['ProductViewDetails']:
-        print "{0} found".format(product['ProductViewSummary']['Name'])
-        if product['ProductViewSummary']['Name'] == product_name:
-            product_id =  product['ProductViewSummary']['ProductId']
+    response = ser_cat_clt_conn.search_products()
+    for product in response['ProductViewSummaries']:
+        if product['Name'] == product_name:
+            product_id =  product['ProductId']
             version_response = ser_cat_clt_conn.describe_product(Id=product_id)
             tdict= {}
             vdict= {}
