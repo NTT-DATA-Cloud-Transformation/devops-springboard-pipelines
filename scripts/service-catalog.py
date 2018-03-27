@@ -210,7 +210,7 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             version_response = ser_cat_clt_conn.describe_product_as_admin(Id=product_id)
             tdict= {}
             vdict= {}
-            for version in  version_response['ProvisioningArtifacts']:
+            for version in  version_response['ProvisioningArtifactSummaries']:
                 tdict[time.mktime(version['CreatedTime'].timetuple())]=version['Id']
                 vdict[time.mktime(version['CreatedTime'].timetuple())]=version['Name']
 
