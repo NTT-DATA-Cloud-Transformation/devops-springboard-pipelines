@@ -192,7 +192,7 @@ def compare_templates(conn,template_url,product_name,product_template):
     with open(new_template_path) as f1, open(old_template_path) as f2:
         difference = set(f1).difference(f2)
 
-    print difference
+    logging.debug(difference)
     if difference == diff_set:
         logging.debug(False,old_template_path)
         return (False,old_template_path)
