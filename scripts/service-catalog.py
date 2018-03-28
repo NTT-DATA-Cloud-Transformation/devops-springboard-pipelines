@@ -17,11 +17,11 @@ def put_template_in_s3(client_s3,new_template_path):
     :return:
     """
     ntp=new_template_path
-    logging.debug(new_template_path)
+    logging.debug("new_template_path: {}".format(new_template_path))
     new_template_path = BUCKET_PATH+ "/" + new_template_path
-    logging.debug(new_template_path)
+    logging.debug("new_template_path: {}".format(new_template_path))
     filename_without_ext=new_template_path.split(".")[0]
-    logging.debug(filename_without_ext)
+    logging.debug("filename_without_ext: {}".format(filename_without_ext))
     logging.info("path for putting {}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml"))
     response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml")
     logging.info("new template uploaded to bucket")
@@ -80,8 +80,8 @@ def create_product(client,product_name,temp_s3_url):
     logging.info(temp_s3_url)
     logging.info(VERSION)
     logging.info(product_name)
-    logging.debug(SUPPORT_EMAIL)
-    logging.debug(SUPPORT_URL)
+    logging.debug("SUPPORT_EMAIL: {}".format(SUPPORT_EMAIL))
+    logging.debug("SUPPORT_URL: {}".format(SUPPORT_URL))
 
 
     response = client.create_product(Name=product_name,Owner="flux7",Description="ecs-wrokshop",Distributor="flux7",SupportDescription="to enhance the code pipeline to use the service catalog",
@@ -120,7 +120,7 @@ def create_version_of_product(client,version,temp_s3_url,product_id,product_name
     logging.info("version=",version)
     url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + temp_s3_url
 
-    logging.debug("URL={}".format(url))
+    logging.debug("URL: {}".format(url))
     response = client.create_provisioning_artifact(ProductId=product_id,
                                                    Parameters={
                                                        'Name': version,
@@ -181,8 +181,8 @@ def compare_templates(conn,template_url,product_name,product_template):
     object_info_list=template_url.split("/",4)
     bucket=object_info_list[3]
     key=object_info_list[4].split(".yml")[0]+".yml"
-    logging.debug(bucket)
-    logging.debug(key)
+    logging.debug("bucket: {}".format(bucket))
+    logging.debug("key: {}".format(key))
     with open('temp_template.yml', 'wb') as data:
         client_s3.download_fileobj(bucket,key, data)
 
@@ -192,12 +192,14 @@ def compare_templates(conn,template_url,product_name,product_template):
     with open(new_template_path) as f1, open(old_template_path) as f2:
         difference = set(f1).difference(f2)
 
-    logging.debug(difference)
+    logging.debug("difference: {}".format(difference))
     if difference == diff_set:
-        logging.debug("{},{}".format(False,old_template_path))
+        logging.debug("status: {}".format(False))
+        logging.debug("old_template_path: {}".format(old_template_path))
         return (False,old_template_path)
     else:
-        logging.debug("{},{}".format(True,new_template_path))
+        logging.debug("status: {}".format(True))
+        logging.debug("new_template_path: {}".format(new_template_path))
         return (True,new_template_path)
 
 def get_latest_version_template_from_product(ser_cat_clt_conn,latest_version_id,product_id):
@@ -209,7 +211,7 @@ def get_latest_version_template_from_product(ser_cat_clt_conn,latest_version_id,
     :return:
     """
     response = ser_cat_clt_conn.describe_provisioning_artifact(ProvisioningArtifactId=latest_version_id,ProductId=product_id)
-    logging.debug("latest template = {}".format(response['Info']['TemplateUrl']))
+    logging.debug("latest template: {}".format(response['Info']['TemplateUrl']))
     return response['Info']['TemplateUrl']
 
 
@@ -256,10 +258,10 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
     response = ser_cat_clt_conn.search_products_as_admin(PortfolioId=portfolio_id)
 
     for product in response['ProductViewDetails']:
-        logging.debug("{0} found".format(product['ProductViewSummary']['Name']))
+        logging.debug("found: {0} ".format(product['ProductViewSummary']['Name']))
         if product['ProductViewSummary']['Name'] == product_name:
             product_id =  product['ProductViewSummary']['ProductId']
-            logging.debug("product_id={}".format(product_id))
+            logging.debug("product_id: {}".format(product_id))
             version_response = ser_cat_clt_conn.describe_product_as_admin(Id=product_id)
             tdict= {}
             vdict= {}
@@ -272,10 +274,10 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
             product_latest_version_id= tdict[max(tdict.keys())]
             product_latest_version_name= vdict[max(vdict.keys())]
-            logging.debug(product_latest_version_id)
-            logging.debug(product_latest_version_name)
+            logging.debug("product_latest_version_id: {}".format(product_latest_version_id))
+            logging.debug("product_latest_version_name: {}".format(product_latest_version_name))
             template_latest = get_latest_version_template_from_product(ser_cat_clt_conn,product_latest_version_id,product_id)
-            logging.debug("product_template={}".format(product_template))
+            logging.debug("product_template: {}".format(product_template))
 
             comp_status = compare_templates(conn,template_latest,product_name,product_template)
 
@@ -332,7 +334,7 @@ if __name__ == "__main__":
         product_temp_s3_url='{}/{}/{}'.format(client_s3.meta.endpoint_url,BUCKET_NAME,"{}/cf-templates/{}/{}".format(BUCKET_PATH,product_name,product_template))
         logging.info(product_temp_s3_url)
         logging.info("product_name={}".format(product_name))
-        logging.debug("product template name={}/{}\n".format(product_name,product_template))
+        logging.debug("product template name: {}/{}\n".format(product_name,product_template))
         # To create product one by one.
         main(product_temp_s3_url,product_name,conn,product_template,portfolio_id)
 
