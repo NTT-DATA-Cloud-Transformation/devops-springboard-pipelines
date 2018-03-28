@@ -120,7 +120,7 @@ def create_version_of_product(client,version,temp_s3_url,product_id,product_name
     logging.info("version=",version)
     url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + temp_s3_url
 
-    logging.debug("URL=",url)
+    logging.debug("URL={}".format(url))
     response = client.create_provisioning_artifact(ProductId=product_id,
                                                    Parameters={
                                                        'Name': version,
@@ -194,10 +194,10 @@ def compare_templates(conn,template_url,product_name,product_template):
 
     logging.debug(difference)
     if difference == diff_set:
-        logging.debug(False,old_template_path)
+        logging.debug("{},{}".format(False,old_template_path))
         return (False,old_template_path)
     else:
-        logging.debug(True,new_template_path)
+        logging.debug("{},{}".format(True,new_template_path))
         return (True,new_template_path)
 
 def get_latest_version_template_from_product(ser_cat_clt_conn,latest_version_id,product_id):
@@ -275,7 +275,7 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             logging.debug(product_latest_version_id)
             logging.debug(product_latest_version_name)
             template_latest = get_latest_version_template_from_product(ser_cat_clt_conn,product_latest_version_id,product_id)
-            logging.debug("product_template=",product_template)
+            logging.debug("product_template={}".format(product_template))
 
             comp_status = compare_templates(conn,template_latest,product_name,product_template)
 
