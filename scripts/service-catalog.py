@@ -1,32 +1,40 @@
 #!/usr/bin/env python
 
-#from botocore.credentials import RefreshableCredentials
-#from botocore.session import get_session
-#from boto3 import Session
+
 import boto3
 import argparse
-import random
 import os
 import fnmatch
 import datetime, time
+import logging
 
 
 def put_template_in_s3(client_s3,new_template_path):
+    """
+    To put the template in s3 bucket for product version creation
+    :param client_s3:
+    :param new_template_path:
+    :return:
+    """
     ntp=new_template_path
-    print new_template_path
+    logging.debug(new_template_path)
     new_template_path = BUCKET_PATH+ "/" + new_template_path
-    print new_template_path
+    logging.debug(new_template_path)
     filename_without_ext=new_template_path.split(".")[0]
-    print filename_without_ext
-    print "path for putting--------------{}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml")
+    logging.debug(filename_without_ext)
+    logging.info("path for putting {}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml"))
     response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml")
-    print "new template uploaded to bucket"
+    logging.info("new template uploaded to bucket")
     upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml"
     return upload_path
 
 def parse_arguments():
+    """
+    To parse the command line arguments passed to script
+    :return:
+    """
     parser = argparse.ArgumentParser(description='Product Creation/Updation')
-    #parser.add_argument('--role_arn', '-ra', help='Role Arn used for accessing AWS resources', required=True)
+    parser.add_argument('--log_level', '-ll', default='WARN', type=str.upper,choices=['DEBUG', 'INFO', 'WARN', 'ERROR'],help='Set log level')
     parser.add_argument('--support_email', '-se', help='Support email for the service catalog products and portfolio', required=True)
     parser.add_argument('--bucket_name', '-bn', help='Bucket name for storing templates for products of service catalog', required=True)
     parser.add_argument('--bucket_path', '-bp', help='S3 bucket folder path for storing templates for products of service catalog like workshop/ecs-workshop', required=True)
@@ -35,48 +43,45 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-"""
-def assumed_temp_session(role_arn,session_name):
-    session = Session()
-    def refresh():
-        credentials = session.client('sts').assume_role(RoleArn=role_arn,RoleSessionName=session_name)['Credentials']
-        return dict(
-            access_key=credentials['AccessKeyId'],
-            secret_key=credentials['SecretAccessKey'],
-            token=credentials['SessionToken'],
-            # Silly that we basically stringify so it can be parsed again
-            expiry_time=credentials['Expiration'].isoformat())
 
-    session_credentials = RefreshableCredentials.create_from_metadata(metadata=refresh(),refresh_using=refresh,method='sts-assume-role')
-    s = get_session()
-    s._credentials = session_credentials
-    region = session._session.get_config_variable('region') or 'us-east-1'
-    s.set_config_variable('region', region)
-    return (Session(botocore_session=s),region)
-"""
+def configure_logging(log_level):
+    """
+    to set the logging level
+    :param log_level:
+    :return:
+    """
+    numeric_level = getattr(logging, log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % log_level)
+
+    logging.basicConfig(level = numeric_level)
+
 
 def create_connection():
+    """
+    To create connection with aws for service catalog ans s3 client
+    :return:
+    """
     client_service_catalog = boto3.client('servicecatalog',region_name=REGION)
     client_s3= boto3.client('s3',region_name=REGION)
-    """
-    if ROLE_ARN:
-        session = assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[0]
-        region= assumed_temp_session(ROLE_ARN, "{0}-{1}".format(ROLE_ARN.split("/")[1],random.randrange(0, 99999999)))[1]
-        client = session.client('servicecatalog',region_name=region)
-        client_s3 = session.client('s3',region_name=region)   
-    return (client,region,client_s3)
-    """
     return(client_service_catalog,REGION,client_s3)
 
 
 
 def create_product(client,product_name,temp_s3_url):
-    print "creating product"
-    print temp_s3_url
-    print VERSION
-    print product_name
-    print SUPPORT_EMAIL
-    print SUPPORT_URL
+    """
+    To create the product
+    :param client:
+    :param product_name:
+    :param temp_s3_url:
+    :return:
+    """
+    logging.info("creating product")
+    logging.info(temp_s3_url)
+    logging.info(VERSION)
+    logging.info(product_name)
+    logging.debug(SUPPORT_EMAIL)
+    logging.debug(SUPPORT_URL)
 
 
     response = client.create_product(Name=product_name,Owner="flux7",Description="ecs-wrokshop",Distributor="flux7",SupportDescription="to enhance the code pipeline to use the service catalog",
@@ -91,7 +96,7 @@ def create_product(client,product_name,temp_s3_url):
                                      }
                                      )
     if  response['ProductViewDetail']['Status'] == 'CREATED':
-        print "product creation successful "
+        logging.info("product creation successful ")
 
 
     product_id = response['ProductViewDetail']['ProductViewSummary']['ProductId']
@@ -101,11 +106,21 @@ def create_product(client,product_name,temp_s3_url):
 
 
 def create_version_of_product(client,version,temp_s3_url,product_id,product_name,region,client_s3):
-    print "version=",version
+    """
+    To create the new version of product when there is a change in template
+    :param client:
+    :param version:
+    :param temp_s3_url:
+    :param product_id:
+    :param product_name:
+    :param region:
+    :param client_s3:
+    :return:
+    """
+    logging.info("version=",version)
     url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + temp_s3_url
-    #end_point_of_template= "-git-hash-" + os.environ['CODEBUILD_SOURCE_VERSION']+".yml"
-    #main_url= temp_s3_url.split(".yml")[0]
-    print "URL=",url
+
+    logging.debug("URL=",url)
     response = client.create_provisioning_artifact(ProductId=product_id,
                                                    Parameters={
                                                        'Name': version,
@@ -117,43 +132,57 @@ def create_version_of_product(client,version,temp_s3_url,product_id,product_name
                                                    #IdempotencyToken=version
                                                    )
 
-    print "new version  {} created for product {} in region {}".format(version,product_name,region)
+    logging.info("new version  {} created for product {} in region {}".format(version,product_name,region))
 
 
 
 
 def create_portfolio(client,portfolio_name,region):
+    """
+    To create the portfolio
+    :param client:
+    :param portfolio_name:
+    :param region:
+    :return:
+    """
     response = client.create_portfolio(
         DisplayName=portfolio_name,
         Description="for the ecs-workshop",
         ProviderName="flux7",
-        #IdempotencyToken=portfolio_name
+
     )
     portfolio_id= response['PortfolioDetail']['Id']
-    print "portfolio {} created in region {}".format(portfolio_name,region)
+    logging.info("portfolio {} created in region {}".format(portfolio_name,region))
     return portfolio_id
 
 def attach_product_to_portfolio(client,product_id,portfolio_id):
+    """
+    To attach the product to portfolio
+    :param client:
+    :param product_id:
+    :param portfolio_id:
+    :return:
+    """
     response = client.associate_product_with_portfolio(
         ProductId=product_id,
         PortfolioId=portfolio_id,
     )
-"""
-def associate_role_with_portfolio(client,portfolio_id):
-    response = client.associate_principal_with_portfolio(
-        PortfolioId=portfolio_id,
-        PrincipalARN=ROLE_ARN,
-        PrincipalType='IAM'
-    )
-    print "role arn {} is associated with portfolio {}".format(ROLE_ARN,portfolio_id)
-"""
+
 def compare_templates(conn,template_url,product_name,product_template):
+    """
+    To compare the new and old template for same product and inform if there is any change in template.
+    :param conn:
+    :param template_url:
+    :param product_name:
+    :param product_template:
+    :return:
+    """
     client_s3 = conn[2]
     object_info_list=template_url.split("/",4)
     bucket=object_info_list[3]
     key=object_info_list[4].split(".yml")[0]+".yml"
-    print bucket
-    print key
+    logging.debug(bucket)
+    logging.debug(key)
     with open('temp_template.yml', 'wb') as data:
         client_s3.download_fileobj(bucket,key, data)
 
@@ -165,52 +194,72 @@ def compare_templates(conn,template_url,product_name,product_template):
 
     print difference
     if difference == diff_set:
-        print False,old_template_path
+        logging.debug(False,old_template_path)
         return (False,old_template_path)
     else:
-        print True,new_template_path
+        logging.debug(True,new_template_path)
         return (True,new_template_path)
 
 def get_latest_version_template_from_product(ser_cat_clt_conn,latest_version_id,product_id):
+    """
+    TO get the latest template from product
+    :param ser_cat_clt_conn:
+    :param latest_version_id:
+    :param product_id:
+    :return:
+    """
     response = ser_cat_clt_conn.describe_provisioning_artifact(ProvisioningArtifactId=latest_version_id,ProductId=product_id)
-    print "latest template = {}".format(response['Info']['TemplateUrl'])
+    logging.debug("latest template = {}".format(response['Info']['TemplateUrl']))
     return response['Info']['TemplateUrl']
 
 
 
 def portfolio(ser_cat_clt_conn,region):
-    """To create portfolio
+    """
+    To search portfolio if it not present then create it.
+    :param ser_cat_clt_conn:
+    :param region:
+    :return:
     """
     portfolio_dict = ser_cat_clt_conn.list_portfolios(PageSize=20)
     if portfolio_dict['PortfolioDetails']==[]:
-        print "creating portfolio {} in region {}".format(PORTFOLIO_NAME,region)
+        logging.info("creating portfolio {} in region {}".format(PORTFOLIO_NAME,region))
         portfolio_id = create_portfolio(ser_cat_clt_conn,PORTFOLIO_NAME,region)
     elif portfolio_dict['PortfolioDetails'] != []:
         for  portfolio in portfolio_dict['PortfolioDetails']:
             if portfolio['DisplayName']==PORTFOLIO_NAME:
-                print "portfolio {} already exist in region {}".format(PORTFOLIO_NAME,region)
+                logging.info("portfolio {} already exist in region {}".format(PORTFOLIO_NAME,region))
                 portfolio_id = portfolio['Id']
                 break
         else:
-            print "creating portfolio {} in region {}".format(PORTFOLIO_NAME,region)
+            logging.info("creating portfolio {} in region {}".format(PORTFOLIO_NAME,region))
             portfolio_id = create_portfolio(ser_cat_clt_conn,PORTFOLIO_NAME,region)
 
     return portfolio_id
 
 def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
+    """
+    To calling the all methods as parent method
+    :param temp_s3_url:
+    :param product_name:
+    :param conn:
+    :param product_template:
+    :param portfolio_id:
+    :return:
+    """
     ser_cat_clt_conn = conn[0]
     region = conn[1]
     client_s3 = conn[2]
 
-    """TO create product
-    """
+    #TO create product
+
     response = ser_cat_clt_conn.search_products_as_admin(PortfolioId=portfolio_id)
-    #print response['ProductViewDetails']
+
     for product in response['ProductViewDetails']:
-        print "{0} found".format(product['ProductViewSummary']['Name'])
+        logging.debug("{0} found".format(product['ProductViewSummary']['Name']))
         if product['ProductViewSummary']['Name'] == product_name:
             product_id =  product['ProductViewSummary']['ProductId']
-            print "product_id={}".format(product_id)
+            logging.debug("product_id={}".format(product_id))
             version_response = ser_cat_clt_conn.describe_product_as_admin(Id=product_id)
             tdict= {}
             vdict= {}
@@ -223,10 +272,10 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
             product_latest_version_id= tdict[max(tdict.keys())]
             product_latest_version_name= vdict[max(vdict.keys())]
-            print product_latest_version_id
-            print product_latest_version_name
+            logging.debug(product_latest_version_id)
+            logging.debug(product_latest_version_name)
             template_latest = get_latest_version_template_from_product(ser_cat_clt_conn,product_latest_version_id,product_id)
-            print "product_template=",product_template
+            logging.debug("product_template=",product_template)
 
             comp_status = compare_templates(conn,template_latest,product_name,product_template)
 
@@ -234,67 +283,57 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
             if comp_status[0] == True:
                 global VERSION
                 VERSION = "v"+str(float(product_latest_version_name.split("v")[1])+1)
-                print VERSION
+                logging.info(VERSION)
                 # upload new template to bucket for new version
                 template_info = put_template_in_s3(client_s3,comp_status[1])
                 create_version_of_product(ser_cat_clt_conn,VERSION,template_info,product_id,product_name,region,client_s3)
 
             break
 
-            """
-            for version in version_response['ProvisioningArtifacts']:
-                if "v1.0.0" == version['Name']:
-                    print "product {} with version {}   already exist in region {} and attached with portfolio {}".format(product_name,"v1.0.0",region,PORTFOLIO_NAME)
-                    break
-            else:
-                #To create New  Version of  existing product
-                create_version_of_product(ser_cat_clt_conn,"v1.0.0",ARGS.version_desc,temp_s3_url,product_id,product_name,region)
-            break
-            """
 
     else:
+        # TO upload template for product creation
         template_info = put_template_in_s3(client_s3,"cf-templates/{}/{}".format(product_name,product_template))
         url_path_without_s3_end_point=template_info
         s3_url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + url_path_without_s3_end_point
 
         product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,s3_url)
-        print "product {} created in region {} with version {}".format(product_name,region,product_version_name)
+        logging.debug("product {} created in region {} with version {}".format(product_name,region,product_version_name))
         #TO associate the product with portfolio
         attach_product_to_portfolio(ser_cat_clt_conn,product_id,portfolio_id)
-        print "product {} attached with portfolio {}".format(product_name,PORTFOLIO_NAME)
+        logging.debug("product {} attached with portfolio {}".format(product_name,PORTFOLIO_NAME))
 
 
 
 
 if __name__ == "__main__":
+    # to get the parsed arguments
     ARGS = parse_arguments()
+    configure_logging(ARGS.log_level)
     SUPPORT_EMAIL = ARGS.support_email
     BUCKET_NAME = ARGS.bucket_name
     BUCKET_PATH = ARGS.bucket_path
     PORTFOLIO_NAME = ARGS.portfolio_name
-    product_name_list=os.listdir('cf-templates')
     REGION = os.environ['AWS_DEFAULT_REGION']
-    #product_name_list= ["common","custombuild"]
-    print product_name_list
-    #ROLE_ARN = os.environ['PORTFOLIO_ROLE_ARN']
     SUPPORT_URL = ARGS.support_url
 
+    product_name_list=os.listdir('cf-templates')
+    logging.info(product_name_list)
     conn = create_connection()
     ser_cat_clt_conn = conn[0]
     region = conn[1]
     client_s3 = conn[2]
-
+    # To create portfolio
     portfolio_id = portfolio(ser_cat_clt_conn,region)
-    # attach role with portfolio
-    #associate_role_with_portfolio(ser_cat_clt_conn,portfolio_id)
 
     for product_name in product_name_list:
         VERSION = "v1.0"
         product_template=fnmatch.filter(os.listdir('cf-templates/{}'.format(product_name)), '*.yml')[0]
         product_temp_s3_url='{}/{}/{}'.format(client_s3.meta.endpoint_url,BUCKET_NAME,"{}/cf-templates/{}/{}".format(BUCKET_PATH,product_name,product_template))
-        print product_temp_s3_url
-        print "product_name={}".format(product_name)
-        print "product template name={}/{}\n".format(product_name,product_template)
+        logging.info(product_temp_s3_url)
+        logging.info("product_name={}".format(product_name))
+        logging.debug("product template name={}/{}\n".format(product_name,product_template))
+        # To create product one by one.
         main(product_temp_s3_url,product_name,conn,product_template,portfolio_id)
 
 
