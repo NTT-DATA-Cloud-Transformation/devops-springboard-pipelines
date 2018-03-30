@@ -309,7 +309,7 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
 
 if __name__ == "__main__":
-    # to get the parsed arguments
+    # To get the parsed arguments
     ARGS = parse_arguments()
     configure_logging(ARGS.log_level)
     SUPPORT_EMAIL = ARGS.support_email
