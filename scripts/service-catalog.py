@@ -9,7 +9,7 @@ import datetime, time
 import logging
 
 
-def put_template_in_s3(client_s3,new_template_path):
+def put_template_in_s3(client_s3,new_template_path,flag):
     """
     To put the template in s3 bucket for product version creation
     :param client_s3:
@@ -20,12 +20,18 @@ def put_template_in_s3(client_s3,new_template_path):
     logging.debug("new_template_path: {}".format(new_template_path))
     new_template_path = BUCKET_PATH+ "/" + new_template_path
     logging.debug("new_template_path: {}".format(new_template_path))
-    filename_without_ext=new_template_path.split(".")[0]
-    logging.debug("filename_without_ext: {}".format(filename_without_ext))
-    logging.info("path for putting {}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"))
-    response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml")
-    logging.info("new template uploaded to bucket")
-    upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"
+    if flag==True:
+        filename_without_ext=new_template_path.split(".")[0]
+        logging.debug("filename_without_ext: {}".format(filename_without_ext))
+        logging.info("path for putting {}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"))
+        response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml")
+        logging.info("new template uploaded to bucket")
+        upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"
+    else:
+        logging.info("path for putting {}".format(new_template_path))
+        response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=new_template_path)
+        logging.info("new template uploaded to bucket")
+        upload_path = new_template_path
     return upload_path
 
 
@@ -295,16 +301,22 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
 
 
     else:
+        if product_name == "common":
+            flag=False
+        else:
+            flag=True
         # TO upload template for product creation
-        template_info = put_template_in_s3(client_s3,"cf-templates/{}/{}".format(product_name,product_template))
+        template_info = put_template_in_s3(client_s3,"cf-templates/{}/{}".format(product_name,product_template),flag)
         url_path_without_s3_end_point=template_info
         s3_url ="{}/{}/".format(client_s3.meta.endpoint_url,BUCKET_NAME) + url_path_without_s3_end_point
-
-        product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,s3_url)
-        logging.debug("product {} created in region {} with version {}".format(product_name,region,product_version_name))
-        #TO associate the product with portfolio
-        attach_product_to_portfolio(ser_cat_clt_conn,product_id,portfolio_id)
-        logging.debug("product {} attached with portfolio {}".format(product_name,PORTFOLIO_NAME))
+        if flag==True:
+            product_id,product_version_id,product_version_name =create_product(ser_cat_clt_conn,product_name,s3_url)
+            logging.debug("product {} created in region {} with version {}".format(product_name,region,product_version_name))
+            #TO associate the product with portfolio
+            attach_product_to_portfolio(ser_cat_clt_conn,product_id,portfolio_id)
+            logging.debug("product {} attached with portfolio {}".format(product_name,PORTFOLIO_NAME))
+        else:
+            pass
 
 
 if __name__ == "__main__":
