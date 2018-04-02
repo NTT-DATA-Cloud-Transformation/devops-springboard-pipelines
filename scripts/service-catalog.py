@@ -28,6 +28,7 @@ def put_template_in_s3(client_s3,new_template_path):
     upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"
     return upload_path
 
+
 def parse_arguments():
     """
     To parse the command line arguments passed to script
