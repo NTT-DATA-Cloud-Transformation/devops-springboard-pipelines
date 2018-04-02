@@ -22,10 +22,10 @@ def put_template_in_s3(client_s3,new_template_path):
     logging.debug("new_template_path: {}".format(new_template_path))
     filename_without_ext=new_template_path.split(".")[0]
     logging.debug("filename_without_ext: {}".format(filename_without_ext))
-    logging.info("path for putting {}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml"))
-    response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml")
+    logging.info("path for putting {}".format(filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"))
+    response = client_s3.put_object( Body=open(ntp),Bucket=BUCKET_NAME,Key=filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml")
     logging.info("new template uploaded to bucket")
-    upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_BUILD_ID']+".yml"
+    upload_path = filename_without_ext + "-git-hash-" +os.environ['CODEBUILD_RESOLVED_SOURCE_VERSION']+".yml"
     return upload_path
 
 def parse_arguments():
