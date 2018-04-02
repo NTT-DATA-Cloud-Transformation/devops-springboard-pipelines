@@ -346,10 +346,7 @@ if __name__ == "__main__":
         logging.info(product_temp_s3_url)
         logging.info("product_name={}".format(product_name))
         logging.debug("product template name: {}/{}\n".format(product_name,product_template))
-        if product_name == "common":
-            pass
-        else:
-            # To create product one by one.
-            main(product_temp_s3_url,product_name,conn,product_template,portfolio_id)
+        # To create product one by one.
+        main(product_temp_s3_url,product_name,conn,product_template,portfolio_id)
 
 
