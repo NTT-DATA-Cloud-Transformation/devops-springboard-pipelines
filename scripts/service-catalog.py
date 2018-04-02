@@ -306,8 +306,6 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
         logging.debug("product {} attached with portfolio {}".format(product_name,PORTFOLIO_NAME))
 
 
-
-
 if __name__ == "__main__":
     # To get the parsed arguments
     ARGS = parse_arguments()
