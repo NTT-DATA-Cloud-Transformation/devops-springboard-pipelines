@@ -380,7 +380,7 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub custom-build-${ServiceName}-container
-              InputArtifacts: [Name: 'GitHubArtifact']
+              InputArtifacts: [Name: 'S3Artifact']
               RunOrder: 1
             -
               Name: ContainerBuild
@@ -391,7 +391,7 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub build-${ServiceName}-container
-              InputArtifacts: [Name: 'GitHubArtifact']
+              InputArtifacts: [Name: 'S3Artifact']
               OutputArtifacts: [Name: 'BuildOutput']
               RunOrder: 3
         -
@@ -406,7 +406,7 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub custom-test-${ServiceName}-container
-              InputArtifacts: [Name: 'GitHubArtifact']
+              InputArtifacts: [Name: 'S3Artifact']
               RunOrder: 1
             -
               Name: ContainerTest
@@ -417,7 +417,7 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub test-${ServiceName}-container
-              InputArtifacts: [Name: 'BuildOutput']
+              InputArtifacts: [Name: 'S3Artifact']
               RunOrder: 1
         -
           Name: ServiceDeploy
