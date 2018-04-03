@@ -3,6 +3,9 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Cloudformation for deploying ecs-service with a custom build and test step and access to S3 and SSM Parameter store
 
 Parameters:
+  TemplatesBucket:
+      Description: S3 bucket to which nested CF templates are synced
+      Type: String
   LZStackPrefix:
     Description: Prefix to find values from landing zone
     Type: String
@@ -15,10 +18,6 @@ Parameters:
   GitBranch:
     Description: 'Branch being deployed'
     Type: 'String'
-  GitHubToken:
-    Description: 'OAuth Token for repo access'
-    Type: 'String'
-    NoEcho: true
   ListenerPriority:
     Description: 'Priority in ALB'
     Type: Number
@@ -345,10 +344,10 @@ Resources:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Sub ${LZStackPrefix}-${ServiceName}-pipeline
+      DisableInboundStageTransitions: []
       RestartExecutionOnUpdate: true
       ArtifactStore:
-        Location:
-          Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+        Location: !Ref TemplatesBucket
         Type: 'S3'
       RoleArn: !GetAtt PipelineIamRole.Arn
       Stages:
@@ -359,16 +358,15 @@ Resources:
               Name: AppRepoSource
               ActionTypeId:
                 Category: Source
-                Owner: ThirdParty
-                Provider: GitHub
-                Version: 1
+                Owner: AWS
+                Provider: S3
+                Version: '1'
               Configuration:
-                Owner: !Ref GitHubUser
-                Repo: !Ref GitRepo
-                Branch: !Ref GitBranch
-                OAuthToken: !Ref GitHubToken
+                S3Bucket: !Ref TemplatesBucket
+                S3ObjectKey: !Sub ${GitHubUser}/${GitRepo}/branch/${GitBranch}/${GitHubUser}_${GitRepo}_branch_${GitBranch}.zip
+                PollForSourceChanges: true
               OutputArtifacts:
-                - Name: GitHubArtifact
+                - Name: S3Artifact
               RunOrder: '1'
         -
           Name: ContainerBuild
