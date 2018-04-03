@@ -164,7 +164,7 @@ Resources:
                 - 'arn:aws:s3:::${ARTIFACTS_BUCKET}/*'
                 -
                   ARTIFACTS_BUCKET:
-                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+                    Fn::ImportValue: !Ref TemplatesBucket
   UserTaskIamPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
