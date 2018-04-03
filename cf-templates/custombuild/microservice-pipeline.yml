@@ -163,8 +163,7 @@ Resources:
               - !Sub
                 - 'arn:aws:s3:::${ARTIFACTS_BUCKET}/*'
                 -
-                  ARTIFACTS_BUCKET:
-                    Fn::ImportValue: !Ref TemplatesBucket
+                  ARTIFACTS_BUCKET: !Ref TemplatesBucket
   UserTaskIamPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
