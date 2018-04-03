@@ -416,7 +416,7 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub test-${ServiceName}-container
-              InputArtifacts: [Name: 'S3Artifact']
+              InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
         -
           Name: ServiceDeploy
