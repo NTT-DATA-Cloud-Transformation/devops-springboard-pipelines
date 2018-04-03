@@ -357,7 +357,7 @@ Resources:
                 - echo Anchore setup started at `date`
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
-                - $(aws ecr get-login)
+                - $(aws ecr get-login --no-include-email)
                 - docker pull ${REPOSITORY_URI}:${TAG}
                 - echo run Anchore daemon
                 - docker pull anchore/cli:latest
