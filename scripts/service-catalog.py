@@ -294,7 +294,8 @@ def main(temp_s3_url,product_name,conn,product_template,portfolio_id):
                 VERSION = "v"+str(float(product_latest_version_name.split("v")[1])+1)
                 logging.info(VERSION)
                 # upload new template to bucket for new version
-                template_info = put_template_in_s3(client_s3,comp_status[1])
+                flag=True
+                template_info = put_template_in_s3(client_s3,comp_status[1],flag)
                 create_version_of_product(ser_cat_clt_conn,VERSION,template_info,product_id,product_name,region,client_s3)
 
             break
