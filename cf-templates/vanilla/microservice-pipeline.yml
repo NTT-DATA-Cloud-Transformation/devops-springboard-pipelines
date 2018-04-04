@@ -4,7 +4,7 @@ Description: Cloudformation for deploying ecs-service
 
 Parameters:
   LZStackPrefix:
-    Description: 'Prefix to find values from landing zone'
+    Description: Prefix to find values from landing zone
     Type: String
   GitHubUser:
     Description: 'GitHub UserName'
@@ -161,7 +161,7 @@ Resources:
           phases:
             pre_build:
               commands:
-                - $(aws ecr get-login)
+                - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
             build:
               commands:
@@ -177,7 +177,7 @@ Resources:
               - microservice.yml
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "aws/codebuild/docker:1.12.1"
+        Image: "aws/codebuild/docker:17.09.0"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
@@ -202,7 +202,7 @@ Resources:
           phases:
             pre_build:
               commands:
-                - $(aws ecr get-login)
+                - $(aws ecr get-login --no-include-email)
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
                 - docker pull ${REPOSITORY_URI}:${TAG}
@@ -218,7 +218,7 @@ Resources:
                 - docker kill test-container
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "aws/codebuild/docker:1.12.1"
+        Image: "aws/codebuild/docker:17.09.0"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION

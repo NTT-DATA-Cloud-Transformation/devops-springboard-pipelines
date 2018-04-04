@@ -4,3 +4,4 @@ phases:
   build:
     commands: 
       - date
+      - env
