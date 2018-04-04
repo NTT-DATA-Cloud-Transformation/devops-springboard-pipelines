@@ -352,6 +352,9 @@ Resources:
         BuildSpec: |
           version: 0.2
           phases:
+            install:
+              commands:
+                - apt-get install  libfreetype6 libc-bin multiarch-support libc6 systemd libsystemd0 systemd-sysv udev libudev1 libxml2 libfreetype6 zlib1g libvpx1 libtiff5
             pre_build:
               commands:
                 - echo Anchore setup started at `date`
