@@ -28,6 +28,10 @@ Parameters:
     Description: ARN for IAM role to use for the task
     Type: String
     Default: ""
+  LaunchType:
+    Description: To specify the launch type for ecs service. By default is FARGATE and allowed values are EC2 and FARGATE.
+    Type: String
+    Default: "FARGATE"
 
 Conditions:
   TaskHasNoIamRole:
@@ -68,6 +72,7 @@ Resources:
       Role:
         Fn::ImportValue: !Sub ${LZStackPrefix}-ecs-service-role
       DesiredCount: !Ref DesiredCount
+      LaunchType: !Ref LaunchType
       TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
         - ContainerName: !Ref ContainerName
@@ -82,6 +87,9 @@ Resources:
           - TaskHasNoIamRole
           - !Ref AWS::NoValue
           - !Ref TaskIamRoleArn
+      RequiresCompatibilities:
+          - "EC2"
+          - "FARGATE"
       ContainerDefinitions:
         - Name: !Ref ContainerName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}:${ContainerTag}
