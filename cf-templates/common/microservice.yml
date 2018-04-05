@@ -88,6 +88,8 @@ Resources:
           - !Ref AWS::NoValue
           - !Ref TaskIamRoleArn
       NetworkMode: awsvpc
+      Cpu: 256
+      Memory: 0.5GB
       RequiresCompatibilities:
           - "EC2"
           - "FARGATE"
