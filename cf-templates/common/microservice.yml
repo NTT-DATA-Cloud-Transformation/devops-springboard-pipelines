@@ -95,6 +95,7 @@ Resources:
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}:${ContainerTag}
           Essential: true
           Memory: 128
+          NetworkMode: awsvpc
           PortMappings:
             - ContainerPort: 80
           Environment:
