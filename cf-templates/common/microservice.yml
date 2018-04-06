@@ -78,9 +78,8 @@ Resources:
           - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
 
-  FargateService:
+  Service:
     Type: AWS::ECS::Service
-    Condition: Fargate
     DependsOn: ListenerRule
     Properties:
       Cluster:
@@ -89,35 +88,28 @@ Resources:
         Fn::ImportValue: !Sub ${LZStackPrefix}-ecs-service-role
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
-      LaunchType: FARGATE
+      LaunchType: !If [ Fargate, "FARGATE", "EC2" ]
       NetworkConfiguration:
-         AwsvpcConfiguration:
-            AssignPublicIp: ENABLED
-            SecurityGroups:
-               - !Ref SourceSecurityGroup
-            Subnets: !Ref Subnets
+        Fn::If:
+          - Fargate
+          - AwsvpcConfiguration:
+              AssignPublicIp: ENABLED
+              SecurityGroups:
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-ecs-security-group
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-alb-security-group
+              Subnets:
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-Private-Subnet-0
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-Private-Subnet-1
+          - !Ref AWS::NoValue
       LoadBalancers:
          - ContainerName: !Ref ContainerName
            ContainerPort: 80
            TargetGroupArn: !Ref TargetGroup
 
-
-  EC2Service:
-    Type: AWS::ECS::Service
-    Condition: EC2
-    DependsOn: ListenerRule
-    Properties:
-      Cluster:
-        Fn::ImportValue: !Sub ${LZStackPrefix}-cluster-name
-      Role:
-        Fn::ImportValue: !Sub ${LZStackPrefix}-ecs-service-role
-      DesiredCount: !Ref DesiredCount
-      LaunchType: EC2
-      TaskDefinition: !Ref TaskDefinition
-      LoadBalancers:
-        - ContainerName: !Ref ContainerName
-          ContainerPort: 80
-          TargetGroupArn: !Ref TargetGroup
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
