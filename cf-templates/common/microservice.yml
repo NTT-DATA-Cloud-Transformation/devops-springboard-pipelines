@@ -28,13 +28,18 @@ Parameters:
     Description: ARN for IAM role to use for the task
     Type: String
     Default: ""
+  LaunchType:
+    Description: To specify the launch type for ecs service. By default is FARGATE and allowed values are EC2 and FARGATE.
+    Type: String
+    Default: FARGATE
 
 Conditions:
   TaskHasNoIamRole:
     !Equals
       - !Ref TaskIamRoleArn
       - ""
-
+  Fargate: !Equals [ !Ref LaunchType, "FARGATE" ]
+  EC2: !Equals [ !Ref LaunchType, "EC2" ]
 Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -58,6 +63,20 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
+  TaskExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Action: sts:AssumeRole
+              Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
 
   Service:
     Type: AWS::ECS::Service
@@ -69,10 +88,29 @@ Resources:
         Fn::ImportValue: !Sub ${LZStackPrefix}-ecs-service-role
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
+      LaunchType: !If [ Fargate, "FARGATE", "EC2" ]
+      NetworkConfiguration:
+        Fn::If:
+          - Fargate
+          - AwsvpcConfiguration:
+              AssignPublicIp: ENABLED
+              SecurityGroups:
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-ecs-security-group
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-alb-security-group
+              Subnets:
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-Private-Subnet-0
+                - Fn::ImportValue:
+                   !Sub ${LZStackPrefix}-Private-Subnet-1
+          - !Ref AWS::NoValue
       LoadBalancers:
-        - ContainerName: !Ref ContainerName
-          ContainerPort: 80
-          TargetGroupArn: !Ref TargetGroup
+         - ContainerName: !Ref ContainerName
+           ContainerPort: 80
+           TargetGroupArn: !Ref TargetGroup
+
+
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -82,6 +120,12 @@ Resources:
           - TaskHasNoIamRole
           - !Ref AWS::NoValue
           - !Ref TaskIamRoleArn
+      NetworkMode: !If [ Fargate, "awsvpc", "bridge" ]
+      Cpu: 256
+      Memory: 512
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      RequiresCompatibilities:
+           - !If [ Fargate, "FARGATE", "EC2" ]
       ContainerDefinitions:
         - Name: !Ref ContainerName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}:${ContainerTag}
@@ -101,3 +145,4 @@ Resources:
               Value:
                 Fn::ImportValue: !Sub ${LZStackPrefix}-lb-dns
           Cpu: 10
+
