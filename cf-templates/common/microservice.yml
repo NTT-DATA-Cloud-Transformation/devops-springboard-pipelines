@@ -29,16 +29,19 @@ Parameters:
     Type: String
     Default: ""
   LaunchType:
-    Description: To specify the launch type for ecs service. By default is FARGATE and allowed values are EC2 and FARGATE.
+    Description: To specify the launch type for ecs service. By default is Fargate and allowed values are EC2 and Fargate.
     Type: String
-    Default: FARGATE
+    Default: Fargate
+    AllowedValues:
+      - Fargate
+      - EC2
 
 Conditions:
   TaskHasNoIamRole:
     !Equals
       - !Ref TaskIamRoleArn
       - ""
-  Fargate: !Equals [ !Ref LaunchType, "FARGATE" ]
+  Fargate: !Equals [ !Ref LaunchType, "Fargate" ]
   EC2: !Equals [ !Ref LaunchType, "EC2" ]
 Resources:
   TargetGroup:

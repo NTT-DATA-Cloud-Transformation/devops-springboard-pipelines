@@ -29,9 +29,12 @@ Parameters:
     Description: 'Name of the service'
     Type: 'String'
   LaunchType:
-    Description: To specify the launch type for ecs service. By default is FARGATE and allowed values are EC2 and FARGATE.
+    Description: To specify the launch type for ecs service. By default is Fargate and allowed values are EC2 and Fargate.
     Type: String
-    Default: "FARGATE"
+    Default: Fargate
+    AllowedValues:
+      - Fargate
+      - EC2
 
 Resources:
   PipelineIamRole:
