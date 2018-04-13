@@ -28,13 +28,6 @@ Parameters:
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
     Type: 'String'
-  LaunchType:
-    Description: To specify the launch type for ecs service. By default is Fargate and allowed values are EC2 and Fargate.
-    Type: String
-    Default: Fargate
-    AllowedValues:
-      - Fargate
-      - EC2
 
 Resources:
   PipelineIamRole:
@@ -322,7 +315,6 @@ Resources:
                     "DesiredCount": "1",
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
-                    "LZStackPrefix": "${LZStackPrefix}",
-                    "LaunchType": "${LaunchType}"
+                    "LZStackPrefix": "${LZStackPrefix}"
                   }
               InputArtifacts: [Name: 'BuildOutput']

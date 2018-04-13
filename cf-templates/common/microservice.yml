@@ -28,21 +28,17 @@ Parameters:
     Description: ARN for IAM role to use for the task
     Type: String
     Default: ""
-  LaunchType:
-    Description: To specify the launch type for ecs service. By default is Fargate and allowed values are EC2 and Fargate.
-    Type: String
-    Default: Fargate
-    AllowedValues:
-      - Fargate
-      - EC2
 
 Conditions:
   TaskHasNoIamRole:
     !Equals
       - !Ref TaskIamRoleArn
       - ""
-  Fargate: !Equals [ !Ref LaunchType, "Fargate" ]
-  EC2: !Equals [ !Ref LaunchType, "EC2" ]
+  Fargate:
+    Fn::Equals:
+      - Fn::ImportValue: !Sub ${LZStackPrefix}-launch-type
+      - "Fargate"
+
 Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
