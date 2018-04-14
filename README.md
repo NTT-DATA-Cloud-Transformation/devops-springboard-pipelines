@@ -1,2 +1,3 @@
-# ecs-workshop
-ECS Workshop being worked on in partnership of Amazon and Flux7.
+# Overview
+This repository contains examples for service deployment pipelines. These pipelines are deployed as service catalog products. 
+
