@@ -47,6 +47,7 @@ Resources:
         Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
       Port: 80
       Protocol: HTTP
+      TargetType: !If [ Fargate, "ip", "instance" ]
 
   ListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -83,7 +84,7 @@ Resources:
     Properties:
       Cluster:
         Fn::ImportValue: !Sub ${LZStackPrefix}-cluster-name
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS"
+      #Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS"
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
       LaunchType: !If [ Fargate, "FARGATE", "EC2" ]
