@@ -28,13 +28,6 @@ Parameters:
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
     Type: 'String'
-  LaunchType:
-    Description: To specify the launch type for ecs service. By default is Fargate and allowed values are EC2 and Fargate.
-    Type: String
-    Default: Fargate
-    AllowedValues:
-      - Fargate
-      - EC2
 
 Resources:
   PipelineIamRole:
@@ -170,6 +163,7 @@ Resources:
               commands:
                 - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                - envsubst < mysite.template > mysite.template.tmp
             build:
               commands:
                 - docker build --tag "${REPOSITORY_URI}:${TAG}" .
@@ -182,6 +176,7 @@ Resources:
             files:
               - build.json
               - microservice.yml
+
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:17.09.0"
@@ -194,6 +189,11 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+          - Name: SERVICE_PATH
+            Value: !Ref ListenerPath
+          - Name: LINK_SERVER_NAME
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-lb-dns
   TestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -309,7 +309,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub w-deploy-${ServiceName}
+                StackName: !Sub ${LZStackPrefix}-deploy-${ServiceName}
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
                 RoleArn:
@@ -322,7 +322,6 @@ Resources:
                     "DesiredCount": "1",
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
-                    "LZStackPrefix": "${LZStackPrefix}",
-                    "LaunchType": "${LaunchType}"
+                    "LZStackPrefix": "${LZStackPrefix}"
                   }
               InputArtifacts: [Name: 'BuildOutput']
