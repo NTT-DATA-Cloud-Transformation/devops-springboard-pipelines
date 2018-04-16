@@ -36,8 +36,8 @@ Conditions:
       - ""
   Fargate:
     Fn::Equals:
-      - Fn::ImportValue: !Sub ${LZStackPrefix}-launch-type
-      - "Fargate"
+      - !Ref AWS::Region
+      - "us-east-1"
 
 Resources:
   TargetGroup:
