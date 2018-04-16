@@ -163,6 +163,9 @@ Resources:
               commands:
                 - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                - export SERVICE_PATH=testpath
+                - export LINK_SERVER_NAME=www.example.com
+                - envsubst < mysite.template > mysite.template.tmp
             build:
               commands:
                 - docker build --tag "${REPOSITORY_URI}:${TAG}" .
@@ -175,6 +178,7 @@ Resources:
             files:
               - build.json
               - microservice.yml
+
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:17.09.0"
