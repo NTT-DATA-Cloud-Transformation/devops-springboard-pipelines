@@ -36,7 +36,7 @@ Conditions:
       - ""
   Fargate:
     Fn::Equals:
-      - !Ref AWS::Region
+      - !Ref 'AWS::Region'
       - "us-east-1"
 
 Resources:
@@ -83,8 +83,7 @@ Resources:
     Properties:
       Cluster:
         Fn::ImportValue: !Sub ${LZStackPrefix}-cluster-name
-      Role:
-        Fn::ImportValue: !Sub ${LZStackPrefix}-ecs-service-role
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS"
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
       LaunchType: !If [ Fargate, "FARGATE", "EC2" ]
