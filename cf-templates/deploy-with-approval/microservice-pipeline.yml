@@ -28,8 +28,19 @@ Parameters:
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
     Type: 'String'
+  ApproverEmail:
+    Description: Email id to send approval notification
+    Type: String
 
 Resources:
+  ApprovalSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: "SNS Topic to publish Approval notifications"
+      Subscription:
+        - Endpoint: !Ref ApproverEmail
+          Protocol: email
+
   PipelineIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -60,13 +71,6 @@ Resources:
                 - 'cloudformation:SetStackPolicy'
                 - 'iam:PassRole'
                 - 'sns:Publish'
-                 # 'codecommit:BatchGetRepositories'
-                 #  - 'codecommit:Get*'
-                 #  - 'codecommit:GitPull'
-                 #  - 'codecommit:List*'
-                 #  - 'codecommit:Update*'
-                 #  - 'codecommit:Test*'
-                 #  - 'codecommit:UploadArchive'
                 Effect: Allow
                 Resource: '*'
   CustomBuildIamRole:
@@ -423,7 +427,46 @@ Resources:
               RunOrder: 1
         -
           Name: ServiceDeploy
-          Actions:
+            Actions:
+            -
+              Name: CreateChangeset
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+                InputArtifacts: [Name: 'BuildOutput']
+                RunOrder: '1'
+                Configuration:
+                  Capabilities: CAPABILITY_NAMED_IAM
+                  ActionMode: CHANGE_SET_REPLACE
+                  RoleArn:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
+                  StackName: !Sub ${LZStackPrefix}-deploy-${ServiceName}
+                  TemplatePath:  BuildOutput::microservice.yml
+                  ParameterOverrides: !Sub |
+                  {
+                    "ContainerRepository": "${ServiceName}",
+                    "ContainerName": "${ServiceName}",
+                    "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "DesiredCount": "2",
+                    "ListenerPriority": "${ListenerPriority}",
+                    "ListenerPath": "${ListenerPath}",
+                    "LZStackPrefix": "${LZStackPrefix}",
+                    "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
+                  }
+
+            -
+              Name: GetApproval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: 1
+                Provider: Manual
+              RunOrder: '2'
+              Configuration:
+                NotificationArn: !Ref ApprovalSNSTopic
+                CustomData: "Please review the latest changes and approve/disapprove accordingly"
             -
               Name: Deploy
               ActionTypeId:
@@ -431,12 +474,13 @@ Resources:
                 Owner: AWS
                 Version: 1
                 Provider: CloudFormation
+              RunOrder: '3'
               Configuration:
                 ChangeSetName: !Sub Deploy-${ServiceName}-Vanilla-On-${LZStackPrefix}
                 ActionMode: CREATE_UPDATE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub w-deploy-${ServiceName}
+                StackName: !Sub ${GithubUser}-${GitBranch}-${ServiceName}
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
                 RoleArn:
