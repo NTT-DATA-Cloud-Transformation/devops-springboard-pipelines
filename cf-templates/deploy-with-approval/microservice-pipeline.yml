@@ -210,6 +210,33 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub ${ServiceName}
+
+  CustomBuildProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and run ./buildspec.yml'
+      Name: !Sub custom-build-${ServiceName}-container
+      ServiceRole: !Ref CustomBuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:17.09.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: RESOURCE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+          - Name: RESOURCE_BUCKET_PATH
+            Value: !Sub /service/${ServiceName}/
+
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -251,6 +278,34 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+
+  CustomTestProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub '$Checkout container from ${Repository} and run any custom tests'
+      Name: !Sub custom-test-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: testspec.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:17.09.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: RESOURCE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+          - Name: RESOURCE_BUCKET_PATH
+            Value: !Sub /service/${ServiceName}/
+          - Name: BUILD_JSON
+            Value: build.json
 
   TestProject:
     Type: "AWS::CodeBuild::Project"
@@ -327,6 +382,17 @@ Resources:
           Name: ContainerBuild
           Actions:
             -
+              Name: CustomCodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub custom-build-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              RunOrder: 1
+            -
               Name: ContainerBuild
               ActionTypeId:
                 Category: Build
@@ -337,10 +403,21 @@ Resources:
                 ProjectName: !Sub build-${ServiceName}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 1
+              RunOrder: 2
         -
           Name: ContainerTest
           Actions:
+            -
+              Name: CustomCodeTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub custom-test-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              RunOrder: 1
             -
               Name: ContainerTest
               ActionTypeId:
@@ -369,7 +446,7 @@ Resources:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub ${GitHubUser}-${GitBranch}-${ServiceName}
+                StackName: !Sub ${LZStackPrefix}-deploy-${ServiceName}
                 ChangeSetName: !Sub Deploy-${ServiceName}-with-approval-${LZStackPrefix}
                 TemplatePath:  BuildOutput::microservice.yml
                 ParameterOverrides: !Sub |
@@ -408,7 +485,7 @@ Resources:
                 ActionMode: CHANGE_SET_EXECUTE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub ${GitHubUser}-${GitBranch}-${ServiceName}
+                StackName: !Sub ${LZStackPrefix}-deploy-${ServiceName}
                 Capabilities: CAPABILITY_NAMED_IAM
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
