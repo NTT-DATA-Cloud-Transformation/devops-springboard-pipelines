@@ -23,18 +23,11 @@ Parameters:
     Description: 'Priority in ALB'
     Type: Number
   ListenerPath:
-    Description: 'Path on which microservice is deployed'
+    Description: 'Path on which Microservice is deployed'
     Type: 'String'
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
     Type: 'String'
-  LaunchType:
-    Description: To specify the launch type for ecs service. By default is Fargate and allowed values are EC2 and Fargate.
-    Type: String
-    Default: Fargate
-    AllowedValues:
-      - Fargate
-      - EC2
 
 Resources:
   PipelineIamRole:
@@ -348,6 +341,69 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
+  AnchoreTestProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub '$Checkout container from ${Repository} and check anchore gate'
+      Name: !Sub anchore-test-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Anchore setup started at `date`
+                - docker pull anchore/cli:latest
+                - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
+                - echo Testing $REPOSITORY_NAME:$TAG
+                - $(aws ecr get-login --no-include-email)
+                - docker pull ${REPOSITORY_URI}:${TAG}
+                - echo run Anchore daemon
+                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/security/anchore_global.whitelist .
+                - docker cp anchore_global.whitelist anchore_cli:/root/.anchore/conf/
+                - echo create wrapper script for gate to hide warning
+                - echo '#!/bin/bash' >gate_runner.sh
+                - echo 'docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}' >>gate_runner.sh
+                - echo 'STATUS_CODE=$?' >>gate_runner.sh
+                - echo 'if [ $STATUS_CODE -eq "0" ]; then' >>gate_runner.sh
+                - echo '  echo Anchore gate passed' >>gate_runner.sh
+                - echo 'elif [ $STATUS_CODE -eq "2" ]; then' >>gate_runner.sh
+                - echo '  echo Anchore gate passed with warnings' >>gate_runner.sh
+                - echo 'else' >>gate_runner.sh
+                - echo '  exit $STATUS_CODE' >>gate_runner.sh
+                - echo 'fi' >>gate_runner.sh
+                - cat gate_runner.sh
+                - chmod u+x gate_runner.sh
+            build:
+              commands:
+                - echo Anchore started at `date`
+                - docker exec anchore_cli anchore feeds sync
+                - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
+                - ./gate_runner.sh
+            post_build:
+              commands:
+                - echo Anchore completed at `date`
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:17.09.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: REPOSITORY_NAME
+            Value: !Sub ${Repository}
+          - Name: BUILD_JSON
+            Value: build.json
+          - Name: TEMPLATE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -378,7 +434,7 @@ Resources:
                 - Name: GitHubArtifact
               RunOrder: '1'
         -
-          Name: ContainerBuild
+          Name: Build
           Actions:
             -
               Name: CustomCodeBuild
@@ -404,7 +460,7 @@ Resources:
               OutputArtifacts: [Name: 'BuildOutput']
               RunOrder: 3
         -
-          Name: ContainerTest
+          Name: Test
           Actions:
             -
               Name: CustomCodeTest
@@ -426,6 +482,17 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub test-${ServiceName}-container
+              InputArtifacts: [Name: 'BuildOutput']
+              RunOrder: 1
+            -
+              Name: AnchoreTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub anchore-test-${ServiceName}-container
               InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
         -
@@ -457,7 +524,6 @@ Resources:
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
                     "LZStackPrefix": "${LZStackPrefix}",
-                    "TaskIamRoleArn": "${UserTaskIamRole.Arn}",
-                    "LaunchType": "${LaunchType}"
+                    "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
                   }
               InputArtifacts: [Name: 'BuildOutput']
