@@ -227,7 +227,6 @@ Resources:
               commands:
                 - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
-                - envsubst < mysite.template > mysite.template.tmp
             build:
               commands:
                 - docker build --tag "${REPOSITORY_URI}:${TAG}" .
@@ -252,11 +251,7 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-          - Name: SERVICE_PATH
-            Value: !Ref ListenerPath
-          - Name: LINK_SERVER_NAME
-            Value:
-              Fn::ImportValue: !Sub ${LZStackPrefix}-lb-dns
+
   TestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
