@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation for deploying ecs-service with a custom build and test step and access to S3 and SSM Parameter store
+Description: Cloudformation for deploying ecs-service
 
 Parameters:
   LZStackPrefix:
@@ -23,7 +23,7 @@ Parameters:
     Description: 'Priority in ALB'
     Type: Number
   ListenerPath:
-    Description: 'Path on which microservice is deployed'
+    Description: 'Path on which Microservice is deployed'
     Type: 'String'
   ServiceName: # GitHubUser/GitRepo may have capital letters, need to send separately
     Description: 'Name of the service'
@@ -69,33 +69,7 @@ Resources:
                  #  - 'codecommit:UploadArchive'
                 Effect: Allow
                 Resource: '*'
-  CustomBuildIamRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          -
-            Action: 'sts:AssumeRole'
-            Effect: Allow
-            Principal:
-              Service: 'codebuild.amazonaws.com'
-      Path: /
-      ManagedPolicyArns:
-        - !Ref CodeBuildStandardPolicy
-        - !Ref UserTaskIamPolicy
-  UserTaskIamRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          -
-            Action: 'sts:AssumeRole'
-            Effect: Allow
-            Principal:
-              Service: 'ecs-tasks.amazonaws.com'
-      Path: /
-      ManagedPolicyArns:
-        - !Ref UserTaskIamPolicy
+
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -126,7 +100,7 @@ Resources:
                         Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
-        - !Ref UserTaskIamPolicy # In case we need to pull from S3 to get an artifact stored there in the custom build step
+
   CodeBuildStandardPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
@@ -166,71 +140,12 @@ Resources:
                 -
                   ARTIFACTS_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
-  UserTaskIamPolicy:
-    Type: "AWS::IAM::ManagedPolicy"
-    Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          -
-            Sid: AccessUserSpecificBucketPath
-            Effect: Allow
-            Action:
-              - s3:GetObject
-              - s3:PutObject
-              - s3:PutObjectAcl
-              - s3:GetObjectVersion
-            Resource:
-              - !Sub
-                - 'arn:aws:s3:::${RESOURCES_BUCKET}/service/${SERVICE_NAME}/*'
-                -
-                  RESOURCES_BUCKET:
-                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
-                  SERVICE_NAME: !Ref ServiceName
-          -
-            Sid: ListBucket
-            Effect: Allow
-            Action:
-              - s3:ListBucket
-            Resource:
-              - !Sub
-                - 'arn:aws:s3:::${RESOURCES_BUCKET}/*'
-                - RESOURCES_BUCKET:
-                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
-              - !Sub
-                - 'arn:aws:s3:::${RESOURCES_BUCKET}'
-                - RESOURCES_BUCKET:
-                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
 
   Repository:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub ${ServiceName}
-  CustomBuildProject:
-    Type: "AWS::CodeBuild::Project"
-    Properties:
-      Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and run ./buildspec.yml'
-      Name: !Sub custom-build-${ServiceName}-container
-      ServiceRole: !Ref CustomBuildIamRole
-      Artifacts:
-        Type: CODEPIPELINE
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec.yml
-      Environment:
-        ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "aws/codebuild/docker:17.09.0"
-        Type: "LINUX_CONTAINER"
-        EnvironmentVariables:
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AWS::Region
-          - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
-          - Name: RESOURCE_BUCKET
-            Value:
-              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
-          - Name: RESOURCE_BUCKET_PATH
-            Value: !Sub /service/${ServiceName}/
+
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -248,6 +163,7 @@ Resources:
               commands:
                 - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                - envsubst < mysite.template > mysite.template.tmp
             build:
               commands:
                 - docker build --tag "${REPOSITORY_URI}:${TAG}" .
@@ -260,6 +176,7 @@ Resources:
             files:
               - build.json
               - microservice.yml
+
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:17.09.0"
@@ -272,33 +189,6 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-  CustomTestProject:
-    Type: "AWS::CodeBuild::Project"
-    Properties:
-      Description: !Sub '$Checkout container from ${Repository} and run any custom tests'
-      Name: !Sub custom-test-${ServiceName}-container
-      ServiceRole: !Ref BuildIamRole
-      Artifacts:
-        Type: CODEPIPELINE
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: testspec.yml
-      Environment:
-        ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "aws/codebuild/docker:17.09.0"
-        Type: "LINUX_CONTAINER"
-        EnvironmentVariables:
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AWS::Region
-          - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
-          - Name: RESOURCE_BUCKET
-            Value:
-              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
-          - Name: RESOURCE_BUCKET_PATH
-            Value: !Sub /service/${ServiceName}/
-          - Name: BUILD_JSON
-            Value: build.json
   TestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -374,18 +264,7 @@ Resources:
           Name: ContainerBuild
           Actions:
             -
-              Name: CustomCodeBuild
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-              Configuration:
-                ProjectName: !Sub custom-build-${ServiceName}-container
-              InputArtifacts: [Name: 'GitHubArtifact']
-              RunOrder: 1
-            -
-              Name: ContainerBuild
+              Name: CodeBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -395,23 +274,12 @@ Resources:
                 ProjectName: !Sub build-${ServiceName}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 3
+              RunOrder: 1
         -
           Name: ContainerTest
           Actions:
             -
-              Name: CustomCodeTest
-              ActionTypeId:
-                Category: Test
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-              Configuration:
-                ProjectName: !Sub custom-test-${ServiceName}-container
-              InputArtifacts: [Name: 'GitHubArtifact']
-              RunOrder: 1
-            -
-              Name: ContainerTest
+              Name: CodeTest
               ActionTypeId:
                 Category: Test
                 Owner: AWS
@@ -436,7 +304,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub w-deploy-${ServiceName}
+                StackName: !Sub ${LZStackPrefix}-deploy-${ServiceName}
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
                 RoleArn:
@@ -446,10 +314,9 @@ Resources:
                     "ContainerRepository": "${ServiceName}",
                     "ContainerName": "${ServiceName}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
-                    "DesiredCount": "2",
+                    "DesiredCount": "1",
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
-                    "LZStackPrefix": "${LZStackPrefix}",
-                    "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
+                    "LZStackPrefix": "${LZStackPrefix}"
                   }
               InputArtifacts: [Name: 'BuildOutput']

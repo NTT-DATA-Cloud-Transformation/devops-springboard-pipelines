@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation for deploying ecs-service
+Description: Cloudformation for deploying ecs-service with a custom build and test step and access to S3 and SSM Parameter store
 
 Parameters:
   LZStackPrefix:
@@ -69,7 +69,33 @@ Resources:
                  #  - 'codecommit:UploadArchive'
                 Effect: Allow
                 Resource: '*'
-
+  CustomBuildIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'codebuild.amazonaws.com'
+      Path: /
+      ManagedPolicyArns:
+        - !Ref CodeBuildStandardPolicy
+        - !Ref UserTaskIamPolicy
+  UserTaskIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+      Path: /
+      ManagedPolicyArns:
+        - !Ref UserTaskIamPolicy
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -100,7 +126,7 @@ Resources:
                         Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
-
+        - !Ref UserTaskIamPolicy # In case we need to pull from S3 to get an artifact stored there in the custom build step
   CodeBuildStandardPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
@@ -140,12 +166,71 @@ Resources:
                 -
                   ARTIFACTS_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+  UserTaskIamPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Sid: AccessUserSpecificBucketPath
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetObjectVersion
+            Resource:
+              - !Sub
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}/service/${SERVICE_NAME}/*'
+                -
+                  RESOURCES_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+                  SERVICE_NAME: !Ref ServiceName
+          -
+            Sid: ListBucket
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}/*'
+                - RESOURCES_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+              - !Sub
+                - 'arn:aws:s3:::${RESOURCES_BUCKET}'
+                - RESOURCES_BUCKET:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
 
   Repository:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub ${ServiceName}
-
+  CustomBuildProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and run ./buildspec.yml'
+      Name: !Sub custom-build-${ServiceName}-container
+      ServiceRole: !Ref CustomBuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:17.09.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: RESOURCE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+          - Name: RESOURCE_BUCKET_PATH
+            Value: !Sub /service/${ServiceName}/
   BuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -163,7 +248,6 @@ Resources:
               commands:
                 - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
-                - envsubst < mysite.template > mysite.template.tmp
             build:
               commands:
                 - docker build --tag "${REPOSITORY_URI}:${TAG}" .
@@ -176,7 +260,6 @@ Resources:
             files:
               - build.json
               - microservice.yml
-
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:17.09.0"
@@ -189,11 +272,33 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-          - Name: SERVICE_PATH
-            Value: !Ref ListenerPath
-          - Name: LINK_SERVER_NAME
+  CustomTestProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub '$Checkout container from ${Repository} and run any custom tests'
+      Name: !Sub custom-test-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: testspec.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:17.09.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: RESOURCE_BUCKET
             Value:
-              Fn::ImportValue: !Sub ${LZStackPrefix}-lb-dns
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
+          - Name: RESOURCE_BUCKET_PATH
+            Value: !Sub /service/${ServiceName}/
+          - Name: BUILD_JSON
+            Value: build.json
   TestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
@@ -236,6 +341,69 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
+  AnchoreTestProject:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: !Sub '$Checkout container from ${Repository} and check anchore gate'
+      Name: !Sub anchore-test-${ServiceName}-container
+      ServiceRole: !Ref BuildIamRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Anchore setup started at `date`
+                - docker pull anchore/cli:latest
+                - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
+                - echo Testing $REPOSITORY_NAME:$TAG
+                - $(aws ecr get-login --no-include-email)
+                - docker pull ${REPOSITORY_URI}:${TAG}
+                - echo run Anchore daemon
+                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/security/anchore_global.whitelist .
+                - docker cp anchore_global.whitelist anchore_cli:/root/.anchore/conf/
+                - echo create wrapper script for gate to hide warning
+                - echo '#!/bin/bash' >gate_runner.sh
+                - echo 'docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}' >>gate_runner.sh
+                - echo 'STATUS_CODE=$?' >>gate_runner.sh
+                - echo 'if [ $STATUS_CODE -eq "0" ]; then' >>gate_runner.sh
+                - echo '  echo Anchore gate passed' >>gate_runner.sh
+                - echo 'elif [ $STATUS_CODE -eq "2" ]; then' >>gate_runner.sh
+                - echo '  echo Anchore gate passed with warnings' >>gate_runner.sh
+                - echo 'else' >>gate_runner.sh
+                - echo '  exit $STATUS_CODE' >>gate_runner.sh
+                - echo 'fi' >>gate_runner.sh
+                - cat gate_runner.sh
+                - chmod u+x gate_runner.sh
+            build:
+              commands:
+                - echo Anchore started at `date`
+                - docker exec anchore_cli anchore feeds sync
+                - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
+                - ./gate_runner.sh
+            post_build:
+              commands:
+                - echo Anchore completed at `date`
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:17.09.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: REPOSITORY_NAME
+            Value: !Sub ${Repository}
+          - Name: BUILD_JSON
+            Value: build.json
+          - Name: TEMPLATE_BUCKET
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -266,10 +434,21 @@ Resources:
                 - Name: GitHubArtifact
               RunOrder: '1'
         -
-          Name: ContainerBuild
+          Name: Build
           Actions:
             -
-              Name: CodeBuild
+              Name: CustomCodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub custom-build-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              RunOrder: 1
+            -
+              Name: ContainerBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -279,12 +458,23 @@ Resources:
                 ProjectName: !Sub build-${ServiceName}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
-              RunOrder: 1
+              RunOrder: 3
         -
-          Name: ContainerTest
+          Name: Test
           Actions:
             -
-              Name: CodeTest
+              Name: CustomCodeTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub custom-test-${ServiceName}-container
+              InputArtifacts: [Name: 'GitHubArtifact']
+              RunOrder: 1
+            -
+              Name: ContainerTest
               ActionTypeId:
                 Category: Test
                 Owner: AWS
@@ -292,6 +482,17 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Sub test-${ServiceName}-container
+              InputArtifacts: [Name: 'BuildOutput']
+              RunOrder: 1
+            -
+              Name: AnchoreTest
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Sub anchore-test-${ServiceName}-container
               InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
         -
@@ -309,7 +510,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub ${LZStackPrefix}-deploy-${ServiceName}
+                StackName: !Sub w-deploy-${ServiceName}
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath:  BuildOutput::microservice.yml
                 RoleArn:
@@ -319,9 +520,10 @@ Resources:
                     "ContainerRepository": "${ServiceName}",
                     "ContainerName": "${ServiceName}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
-                    "DesiredCount": "1",
+                    "DesiredCount": "2",
                     "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${ListenerPath}",
-                    "LZStackPrefix": "${LZStackPrefix}"
+                    "LZStackPrefix": "${LZStackPrefix}",
+                    "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
                   }
               InputArtifacts: [Name: 'BuildOutput']
