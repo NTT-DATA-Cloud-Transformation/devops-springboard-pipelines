@@ -167,39 +167,36 @@ def attach_product_to_portfolio(client, product_id, portfolio_id):
     )
 
 
-def compare_templates(conn, template_url, product_name, product_template):
+def compare_templates(conn, template_url, product_conf):
     """
     To compare the new and old template for same product and inform if there is any change in template.
     :param conn:
     :param template_url:
-    :param product_name:
-    :param product_template:
+    :param product_conf:
     :return:
     """
-    s3_client = conn[2]
+    s3_client = conn['s3_client']
     object_info_list = template_url.split("/", 4)
     bucket = object_info_list[3]
-    key = object_info_list[4].split(".yml")[0]+".yml"
+    key = object_info_list[4]
     logging.debug("bucket: {}".format(bucket))
     logging.debug("key: {}".format(key))
     with open('temp_template.yml', 'wb') as data:
         s3_client.download_fileobj(bucket, key, data)
 
     old_template_path = 'temp_template.yml'
-    new_template_path = 'cf-templates/{}/{}'.format(product_name, product_template)
+    new_template_path = product_conf['TemplatePath']
     diff_set = set()
     with open(new_template_path) as f1, open(old_template_path) as f2:
         difference = set(f1).difference(f2)
 
     logging.debug("difference: {}".format(difference))
     if difference == diff_set:
-        logging.debug("status: {}".format(False))
-        logging.debug("old_template_path: {}".format(old_template_path))
-        return False, old_template_path
+        logging.warn("No difference found in the templates")
+        return False
     else:
         logging.debug("status: {}".format(True))
-        logging.debug("new_template_path: {}".format(new_template_path))
-        return True, new_template_path
+        return True
 
 
 def get_latest_version_template_from_product(service_catalog_client, latest_version_id, product_id):
@@ -317,9 +314,8 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
                 # Get latest template for that product
                 template_latest = get_latest_version_template_from_product(
                     conn['service_catalog_client'], product_latest_version['Id'], product_id)
-                comp_status = compare_templates(
-                    conn, template_latest, product_name, product_template)
-                if comp_status[0]:
+                comp_status = compare_templates(conn, template_latest, product_conf)
+                if comp_status:
                     version = get_codebuild_version()
                     logging.info(version)
                     # upload new template to bucket for new version

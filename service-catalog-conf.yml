@@ -22,9 +22,9 @@ Portfolios:
         SupportEmail: support@flux7.com
         SupportUrl: http://www.flux7.com
         Owner: Flux7
-        Version:
-          Name: v1.0
-          Description: Initial Version
+        #Version:
+        #  Name: v1.0
+        #  Description: Initial Version
       -
         Name: deploy-pipeline-with-security
         TemplatePath: cf-templates/deploy-with-security/microservice-pipeline.yml
