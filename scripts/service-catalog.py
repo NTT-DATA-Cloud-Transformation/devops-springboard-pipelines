@@ -16,9 +16,8 @@ def upload_to_s3(s3_client, template_path, bucket_name, bucket_prefix,):
     :return:
     """
     file_parts = template_path.split(".")
-    file_name_without_ext = file_parts[0]
-    upload_path = file_name_without_ext + "_" \
-        + get_codebuild_version() + file_parts[1]
+    upload_path = "/{0}_{1}.{2}".format(
+        file_parts[0], get_codebuild_version(), file_parts[1])
     key_name = bucket_prefix + upload_path
     s3_client.put_object(
         Body=open(template_path),
