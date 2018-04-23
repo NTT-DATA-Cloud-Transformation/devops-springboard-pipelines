@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation for deploying ecs-service with a security test step using anchore. 
+Description: Pipeline to deploy microservice to ecs with a security scan step before deployment
 
 Parameters:
   LZStackPrefix:

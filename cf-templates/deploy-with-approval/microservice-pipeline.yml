@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation for deploying ecs-service with a custom build, custom test and manual approval steps
+Description: Pipeline to deploy microservice to ecs with manual approval step before deployment
 
 Parameters:
   LZStackPrefix:
