@@ -13,8 +13,8 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v1.0
-          Description: Initial Version
+          Name: v2.0
+          Description: Update template description
       -
         Name: deploy-pipeline-with-approval
         TemplatePath: cf-templates/deploy-with-approval/microservice-pipeline.yml
@@ -33,5 +33,5 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v1.0
-          Description: Initial Version
+          Name: v2.0
+          Description: Update template description
