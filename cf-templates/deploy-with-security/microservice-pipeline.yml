@@ -96,6 +96,73 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - !Ref UserTaskIamPolicy
+
+  AnchoreEngineUser:
+    Type: AWS::IAM::User
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+  AnchoreTestIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'codebuild.amazonaws.com'
+      Path: /
+      ManagedPolicyArns:
+        - !Ref CodeBuildStandardPolicy
+        - !Ref UserTaskIamPolicy
+      Policies:
+      -
+        PolicyName: AnchoreUserPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Sid: CreateCreds
+              Effect: Allow
+              Action:
+                - iam:CreateAccessKey
+                - iam:DeleteAccessKey
+              Resource:
+                - !GetAtt AnchoreEngineUser.Arn
+      -
+        PolicyName: AnchoreTestPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Sid: AccessTemplateBucket
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub
+                  - 'arn:aws:s3:::${TEMPLATES_BUCKET}/*'
+                  -
+                    TEMPLATES_BUCKET:
+                      Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+            - Sid: AccessVPC
+              Effect: Allow
+              Action:
+                - 'ec2:DescribeSecurityGroups'
+                - 'ec2:DescribeSubnets'
+                - 'ec2:CreateNetworkInterface'
+              Resource: "*"
+            - Sid: SSMAccessPolicy
+              Effect: Allow
+              Action:
+                - 'ssm:GetParameters'
+              Resource:
+              - !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AnchoreDBSSM}'
+                - AnchoreDBSSM:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-PasswordParameterStoreName
+
+      -
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -127,6 +194,7 @@ Resources:
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
         - !Ref UserTaskIamPolicy # In case we need to pull from S3 to get an artifact stored there in the custom build step
+
   CodeBuildStandardPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
@@ -166,6 +234,7 @@ Resources:
                 -
                   ARTIFACTS_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+
   UserTaskIamPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
@@ -354,7 +423,7 @@ Resources:
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and check anchore gate'
       Name: !Sub anchore-test-${ServiceName}-container
-      ServiceRole: !GetAtt BuildIamRole.Arn
+      ServiceRole: !GetAtt AnchoreTestIAMRole.Arn
       TimeoutInMinutes: 300
       VpcConfig:
         VpcId:
@@ -375,14 +444,16 @@ Resources:
             pre_build:
               commands:
                 - apt-get update
-                - apt-get install -y python-pip
+                - apt-get install -y python-pip jq
                 - pip install anchorecli
                 - mkdir -p /root/aevolume/config
                 - aws s3 cp  s3://${TEMPLATE_BUCKET}/cf-templates/deploy-with-security/config.template.yaml .
+                - aws --output json iam create-access-key --user-name ${ANCHORE_USER} > access_keys.json
 
             build:
               commands:
-                - !# /bin/bash
+                - ACCESS_KEY_ID=$(jq -r .AccessKey.AccessKeyId access_keys.json)
+                - SECRET_ACCESS_KEY=$(jq -r .AccessKey.SecretAccessKey access_keys.json)
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
                 - echo Run Anchore Engine
@@ -398,10 +469,10 @@ Resources:
                 - echo $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
                 - echo $REPOSITORY_URI:$TAG
                 - anchore-cli --u admin --p foobar registry del $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-                - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com awsauto awsauto --registry-type=awsecr
+                - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com $ACCESS_KEY_ID $SECRET_ACCESS_KEY --registry-type=awsecr
                 - anchore-cli --u admin --p foobar registry list
                 - anchore-cli --u admin --p foobar image add $REPOSITORY_URI:$TAG
-                - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; docker logs anchore; sleep 10; done;
+                - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; sleep 10; done;
                 - result=$(anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep Status)
                 - echo $result
                 - test_result=`echo $result | cut -d " " -f 2`
@@ -410,6 +481,8 @@ Resources:
             post_build:
               commands:
                 - echo Anchore completed at `date`
+                - ACCESS_KEY_ID=$(jq -r .AccessKey.AccessKeyId access_keys.json)
+                - aws --output json iam delete-access-key --access-key $ACCESS_KEY_ID --user-name ${ANCHORE_USER}
 
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
@@ -444,7 +517,9 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-              
+          - Name: ANCHORE_USER
+            Value: !Ref AnchoreEngineUser
+
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
