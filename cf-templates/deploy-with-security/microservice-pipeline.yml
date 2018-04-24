@@ -341,12 +341,30 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
+
+  AnchoreatestSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group associated with the codebuild to access db"
+      VpcId:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
+
   AnchoreTestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and check anchore gate'
       Name: !Sub anchore-test-${ServiceName}-container
-      ServiceRole: !Ref BuildIamRole
+      ServiceRole: !GetAtt BuildIamRole.Arn
+      TimeoutInMinutes: 300
+      VpcConfig:
+        VpcId:
+          Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
+        Subnets:
+        - Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-0
+        - Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-1
+        SecurityGroupIds:
+        - !Ref AnchoreatestSg
+
       Artifacts:
         Type: CODEPIPELINE
       Source:
@@ -356,38 +374,43 @@ Resources:
           phases:
             pre_build:
               commands:
-                - echo Anchore setup started at `date`
-                - docker pull anchore/cli:latest
-                - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
-                - echo Testing $REPOSITORY_NAME:$TAG
-                - $(aws ecr get-login --no-include-email)
-                - docker pull ${REPOSITORY_URI}:${TAG}
-                - echo run Anchore daemon
-                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
-                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/security/anchore_global.whitelist .
-                - docker cp anchore_global.whitelist anchore_cli:/root/.anchore/conf/
-                - echo create wrapper script for gate to hide warning
-                - echo '#!/bin/bash' >gate_runner.sh
-                - echo 'docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}' >>gate_runner.sh
-                - echo 'STATUS_CODE=$?' >>gate_runner.sh
-                - echo 'if [ $STATUS_CODE -eq "0" ]; then' >>gate_runner.sh
-                - echo '  echo Anchore gate passed' >>gate_runner.sh
-                - echo 'elif [ $STATUS_CODE -eq "2" ]; then' >>gate_runner.sh
-                - echo '  echo Anchore gate passed with warnings' >>gate_runner.sh
-                - echo 'else' >>gate_runner.sh
-                - echo '  exit $STATUS_CODE' >>gate_runner.sh
-                - echo 'fi' >>gate_runner.sh
-                - cat gate_runner.sh
-                - chmod u+x gate_runner.sh
+                - apt-get update
+                - apt-get install -y python-pip
+                - pip install anchorecli
+                - mkdir -p /root/aevolume/config
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/cf-templates/deploy-with-security/config.template.yaml .
+
             build:
               commands:
-                - echo Anchore started at `date`
-                - docker exec anchore_cli anchore feeds sync
-                - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
-                - ./gate_runner.sh
+                - !# /bin/bash
+                - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
+                - echo Testing $REPOSITORY_NAME:$TAG
+                - echo Run Anchore Engine
+                - docker pull docker.io/anchore/anchore-engine
+                - echo $AWS_DEFAULT_REGION $PASSWORD_PARAM_STORE
+                - export DB_PASSWORD=$(aws --region $AWS_DEFAULT_REGION ssm get-parameters --name $PASSWORD_PARAM_STORE --with-decryption --output text |  cut -f 4)
+                - envsubst < "config.template.yaml" > "/root/aevolume/config/config.yaml"
+                - cat /root/aevolume/config/config.yaml
+                - docker run --privileged --network host -d --name anchore -p 8228:8228 -p 8338:8338 -v /root/aevolume/config:/config/:Z docker.io/anchore/anchore-engine:latest
+                - sleep 10
+                - docker ps -a
+                - docker logs anchore
+                - echo $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+                - echo $REPOSITORY_URI:$TAG
+                - anchore-cli --u admin --p foobar registry del $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com awsauto awsauto --registry-type=awsecr
+                - anchore-cli --u admin --p foobar registry list
+                - anchore-cli --u admin --p foobar image add $REPOSITORY_URI:$TAG
+                - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; docker logs anchore; sleep 10; done;
+                - result=$(anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep Status)
+                - echo $result
+                - test_result=`echo $result | cut -d " " -f 2`
+                - if [ "$test_result" = 'pass' ];then echo "Anchore Scan Passed";else echo "Anchore Scan Failed";exit 1;fi
+
             post_build:
               commands:
                 - echo Anchore completed at `date`
+
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:17.09.0"
@@ -399,11 +422,29 @@ Resources:
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
           - Name: REPOSITORY_NAME
             Value: !Sub ${Repository}
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
           - Name: BUILD_JSON
             Value: build.json
+          - Name: DB_USERNAME
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Username
+          - Name: PASSWORD_PARAM_STORE
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-PasswordParameterStoreName
+          - Name: DB_HOST
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Endpoint
+          - Name: DB_PORT
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Port
+          - Name: DB_NAME
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Name
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+              
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
