@@ -118,8 +118,8 @@ Resources:
         - !Ref CodeBuildStandardPolicy
         - !Ref UserTaskIamPolicy
       Policies:
-      -
-        PolicyName: AnchoreUserPolicy
+        -
+          PolicyName: AnchoreUserPolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -130,8 +130,8 @@ Resources:
                 - iam:DeleteAccessKey
               Resource:
                 - !GetAtt AnchoreEngineUser.Arn
-      -
-        PolicyName: AnchoreTestPolicy
+        -
+          PolicyName: S3SSMAccessPolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -145,13 +145,6 @@ Resources:
                   -
                     TEMPLATES_BUCKET:
                       Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-            - Sid: AccessVPC
-              Effect: Allow
-              Action:
-                - 'ec2:DescribeSecurityGroups'
-                - 'ec2:DescribeSubnets'
-                - 'ec2:CreateNetworkInterface'
-              Resource: "*"
             - Sid: SSMAccessPolicy
               Effect: Allow
               Action:
@@ -161,8 +154,38 @@ Resources:
                 - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AnchoreDBSSM}'
                 - AnchoreDBSSM:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-PasswordParameterStoreName
+        -
+          PolicyName: CodeBuildVPCAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeDhcpOptions
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeVpcs
+              Resource: "*"
+            - Effect: Allow
+              Action:
+              - ec2:CreateNetworkInterfacePermission
+              Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+              Condition:
+                StringEquals:
+                  ec2:Subnet:
+                  - !Sub
+                    - "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${PrivateSubnet0}"
+                    - PrivateSubnet0:
+                        Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-0
+                  - !Sub
+                    - "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${PrivateSubnet1}"
+                    - PrivateSubnet1:
+                        Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-1
+                  ec2:AuthorizedService: codebuild.amazonaws.com
 
-      -
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
