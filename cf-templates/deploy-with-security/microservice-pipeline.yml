@@ -480,19 +480,21 @@ Resources:
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
                 - echo Run Anchore Engine
-                - docker pull docker.io/anchore/anchore-engine
+                - $(aws ecr get-login --no-include-email)
+                - docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/anchore-engine:latest
+                - #docker pull docker.io/anchore/anchore-engine
                 - echo $AWS_DEFAULT_REGION $PASSWORD_PARAM_STORE
                 - export DB_PASSWORD=$(aws --region $AWS_DEFAULT_REGION ssm get-parameters --name $PASSWORD_PARAM_STORE --with-decryption --output text |  cut -f 4)
                 - envsubst < "config.template.yaml" > "/root/aevolume/config/config.yaml"
                 - cat /root/aevolume/config/config.yaml
-                - docker run --privileged --network host -d --name anchore -p 8228:8228 -p 8338:8338 -v /root/aevolume/config:/config/:Z docker.io/anchore/anchore-engine:latest
+                - docker run --privileged --network host -d --name anchore -p 8228:8228 -p 8338:8338 -v /root/aevolume/config:/config/:Z ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/anchore-engine:latest
                 - sleep 10
                 - docker ps -a
                 - docker logs anchore
                 - echo $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
                 - echo $REPOSITORY_URI:$TAG
                 - anchore-cli --u admin --p foobar registry del $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-                - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com $ACCESS_KEY_ID $SECRET_ACCESS_KEY --registry-type=awsecr
+                - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com awsauto awsauto --registry-type=awsecr
                 - anchore-cli --u admin --p foobar registry list
                 - anchore-cli --u admin --p foobar image add $REPOSITORY_URI:$TAG
                 - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; sleep 10; done;
