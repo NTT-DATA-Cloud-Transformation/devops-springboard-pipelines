@@ -96,6 +96,79 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - !Ref UserTaskIamPolicy
+
+  AnchoreTestIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          -
+            Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: 'codebuild.amazonaws.com'
+      Path: /
+      ManagedPolicyArns:
+        - !Ref CodeBuildStandardPolicy
+        - !Ref UserTaskIamPolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        -
+          PolicyName: S3SSMAccessPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Sid: AccessTemplateBucket
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub
+                  - 'arn:aws:s3:::${TEMPLATES_BUCKET}/*'
+                  -
+                    TEMPLATES_BUCKET:
+                      Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+            - Sid: SSMAccessPolicy
+              Effect: Allow
+              Action:
+                - 'ssm:GetParameters'
+              Resource:
+              - !Sub
+                - 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AnchoreDBSSM}'
+                - AnchoreDBSSM:
+                    Fn::ImportValue: !Sub ${LZStackPrefix}-PasswordParameterStoreName
+        -
+          PolicyName: CodeBuildVPCAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeDhcpOptions
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeVpcs
+              Resource: "*"
+            - Effect: Allow
+              Action:
+              - ec2:CreateNetworkInterfacePermission
+              Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+              Condition:
+                StringEquals:
+                  ec2:Subnet:
+                  - !Sub
+                    - "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${PrivateSubnet0}"
+                    - PrivateSubnet0:
+                        Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-0
+                  - !Sub
+                    - "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${PrivateSubnet1}"
+                    - PrivateSubnet1:
+                        Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-1
+                  ec2:AuthorizedService: codebuild.amazonaws.com
+
   BuildIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -127,6 +200,7 @@ Resources:
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
         - !Ref UserTaskIamPolicy # In case we need to pull from S3 to get an artifact stored there in the custom build step
+
   CodeBuildStandardPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
@@ -166,6 +240,7 @@ Resources:
                 -
                   ARTIFACTS_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-artifact-bucket
+
   UserTaskIamPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
@@ -341,12 +416,30 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
+
+  AnchoreatestSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group associated with the codebuild to access db"
+      VpcId:
+        Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
+
   AnchoreTestProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and check anchore gate'
       Name: !Sub anchore-test-${ServiceName}-container
-      ServiceRole: !Ref BuildIamRole
+      ServiceRole: !GetAtt AnchoreTestIAMRole.Arn
+      TimeoutInMinutes: 300
+      VpcConfig:
+        VpcId:
+          Fn::ImportValue: !Sub ${LZStackPrefix}-VpcId
+        Subnets:
+        - Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-0
+        - Fn::ImportValue: !Sub ${LZStackPrefix}-Private-Subnet-1
+        SecurityGroupIds:
+        - !Ref AnchoreatestSg
+
       Artifacts:
         Type: CODEPIPELINE
       Source:
@@ -356,41 +449,43 @@ Resources:
           phases:
             pre_build:
               commands:
-                - echo Anchore setup started at `date`
-                - docker pull anchore/cli:latest
-                - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
-                - echo Testing $REPOSITORY_NAME:$TAG
-                - $(aws ecr get-login --no-include-email)
-                - docker pull ${REPOSITORY_URI}:${TAG}
-                - echo run Anchore daemon
-                - docker run -d --name anchore_cli -v /var/run/docker.sock:/var/run/docker.sock anchore/cli:latest
-                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/security/anchore_global.whitelist .
-                - docker cp anchore_global.whitelist anchore_cli:/root/.anchore/conf/
-                - echo create wrapper script for gate to hide warning
-                - echo '#!/bin/bash' >gate_runner.sh
-                - echo 'docker exec anchore_cli anchore gate --image ${REPOSITORY_URI}:${TAG}' >>gate_runner.sh
-                - echo 'STATUS_CODE=$?' >>gate_runner.sh
-                - echo 'if [ $STATUS_CODE -eq "0" ]; then' >>gate_runner.sh
-                - echo '  echo Anchore gate passed' >>gate_runner.sh
-                - echo 'elif [ $STATUS_CODE -eq "2" ]; then' >>gate_runner.sh
-                - echo '  echo Anchore gate passed with warnings' >>gate_runner.sh
-                - echo 'else' >>gate_runner.sh
-                - echo '  exit $STATUS_CODE' >>gate_runner.sh
-                - echo 'fi' >>gate_runner.sh
-                - cat gate_runner.sh
-                - chmod u+x gate_runner.sh
+                - pip install --upgrade boto3 awscli anchorecli
+                - yum -y update && yum -y install epel-release && yum -y install gettext
+                - mkdir -p /config
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/cf-templates/deploy-with-security/config.template.yaml .
+                - yum -y install jq
+
+
             build:
               commands:
-                - echo Anchore started at `date`
-                - docker exec anchore_cli anchore feeds sync
-                - docker exec anchore_cli anchore analyze --image ${REPOSITORY_URI}:${TAG}
-                - ./gate_runner.sh
+                - PATH=/usr/local/bin:$PATH
+                - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
+                - echo Testing $REPOSITORY_NAME:$TAG
+                - echo $AWS_DEFAULT_REGION $PASSWORD_PARAM_STORE
+                - export DB_PASSWORD=$(aws --region $AWS_DEFAULT_REGION ssm get-parameters --name $PASSWORD_PARAM_STORE --with-decryption --output text |  cut -f 4)
+                - envsubst < "config.template.yaml" > "/config/config.yaml"
+                - /usr/bin/anchore-engine > /var/log/anchore.out 2>&1 &
+                - sleep 30
+                - echo $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+                - echo $REPOSITORY_URI:$TAG
+                - sleep 30
+                - anchore-cli --u admin --p foobar registry del $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com awsauto awsauto --registry-type=awsecr
+                - anchore-cli --u admin --p foobar registry list
+                - anchore-cli --u admin --p foobar image add $REPOSITORY_URI:$TAG
+                - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; tail -n 300 /var/log/anchore.out; sleep 10; done;
+                - result=$(anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep Status)
+                - echo $result
+                - test_result=`echo $result | cut -d " " -f 2`
+                - if [ "$test_result" = 'pass' ];then echo "Anchore Scan Passed";else echo "Anchore Scan Failed";exit 1;fi
+
             post_build:
               commands:
                 - echo Anchore completed at `date`
+
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "aws/codebuild/docker:17.09.0"
+        Image: "anchore/anchore-engine:latest"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
@@ -399,11 +494,29 @@ Resources:
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
           - Name: REPOSITORY_NAME
             Value: !Sub ${Repository}
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
           - Name: BUILD_JSON
             Value: build.json
+          - Name: DB_USERNAME
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Username
+          - Name: PASSWORD_PARAM_STORE
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-PasswordParameterStoreName
+          - Name: DB_HOST
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Endpoint
+          - Name: DB_PORT
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Port
+          - Name: DB_NAME
+            Value:
+              Fn::ImportValue: !Sub ${LZStackPrefix}-DB-Name
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
