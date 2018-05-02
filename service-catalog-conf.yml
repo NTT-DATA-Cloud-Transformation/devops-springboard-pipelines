@@ -13,7 +13,7 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v2.0
+          Name: v1.0
           Description: Update template description
       -
         Name: deploy-pipeline-with-approval
@@ -22,6 +22,7 @@ Portfolios:
         SupportEmail: support@flux7.com
         SupportUrl: http://www.flux7.com
         Owner: Flux7
+        ## In this case version name is constrtucted from the environment variable CODEBUILD_RESOLVED_SOURCE_VERSION
         #Version:
         #  Name: v1.0
         #  Description: Initial Version
@@ -33,5 +34,5 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v2.0
+          Name: v1.0
           Description: Update template description
