@@ -1,0 +1,38 @@
+##Format
+Portfolios:
+  -
+    Name: AWS Devops Workshop 2018
+    Description: AWS DevopsWorkshop 2018
+    Provider: Flux7
+    Products:
+      -
+        Name: deploy-pipeline-simple
+        TemplatePath: cf-templates/deploy-simple/microservice-pipeline.yml
+        Description: Creates a simple pipeline to deploy microservice
+        SupportEmail: support@flux7.com
+        SupportUrl: http://www.flux7.com
+        Owner: Flux7
+        Version:
+          Name: v1.0
+          Description: Update template description
+      -
+        Name: deploy-pipeline-with-approval
+        TemplatePath: cf-templates/deploy-with-approval/microservice-pipeline.yml
+        Description: Creates a pipeline with a manual approval step to deploy microservice
+        SupportEmail: support@flux7.com
+        SupportUrl: http://www.flux7.com
+        Owner: Flux7
+        ## In this case version name is constrtucted from the environment variable CODEBUILD_RESOLVED_SOURCE_VERSION
+        #Version:
+        #  Name: v1.0
+        #  Description: Initial Version
+      -
+        Name: deploy-pipeline-with-security
+        TemplatePath: cf-templates/deploy-with-security/microservice-pipeline.yml
+        Description: Creates a pipeline with a security test step to deploy microservice
+        SupportEmail: support@flux7.com
+        SupportUrl: http://www.flux7.com
+        Owner: Flux7
+        Version:
+          Name: v1.0
+          Description: Update template description

@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation for deploying ecs-service
+Description: A simple pipeline to deploy a microservice to ECS
 
 Parameters:
   LZStackPrefix:
