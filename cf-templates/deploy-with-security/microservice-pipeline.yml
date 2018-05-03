@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Pipeline to deploy microservice to ecs with a security scan step before deployment
+Description: AWS DevOps Springboard - Pipeline to deploy microservice to ecs with a security scan step before deployment
 
 Parameters:
   LZStackPrefix:
