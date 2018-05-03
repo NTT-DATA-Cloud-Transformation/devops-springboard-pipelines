@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: A simple pipeline to deploy a microservice to ECS
+Description: AWS DevOps Springboard - A simple pipeline to deploy a microservice to ECS
 
 Parameters:
   LZStackPrefix:

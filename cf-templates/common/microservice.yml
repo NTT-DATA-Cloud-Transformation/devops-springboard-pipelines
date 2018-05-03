@@ -134,11 +134,6 @@ Resources:
           Environment:
             - Name: SERVICE_PATH
               Value: !Ref ListenerPath
-            - Name: RESOURCE_BUCKET
-              Value:
-                Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
-            - Name: RESOURCE_BUCKET_PATH
-              Value: !Sub /service/${ContainerName}/
             - Name: LINK_SERVER_NAME
               Value:
                 Fn::ImportValue: !Sub ${LZStackPrefix}-lb-dns
