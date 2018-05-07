@@ -283,6 +283,7 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
     # Check if the product exists, If not create it.
     response = conn['service_catalog_client'].search_products_as_admin(Filters={'FullTextSearch': [product_name]})
     for product in response['ProductViewDetails']:
+
         logging.debug("found: {0} ".format(product['ProductViewSummary']['Name']))
         if product['ProductViewSummary']['Name'] == product_name:
             product_id = product['ProductViewSummary']['ProductId']
@@ -293,6 +294,15 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
                 versions,
                 key=lambda x: x['CreatedTime'].timetuple()
             )
+            ##associate product with given portfolio
+            try:
+                conn['service_catalog_client'].associate_product_with_portfolio(
+                    ProductId=product_id,
+                    PortfolioId=portfolio_id
+                )
+            except conn['service_catalog_client'].exceptions.InvalidParametersException as e:
+                logging.debug(e)
+
             logging.info("product_latest_version_id: {}".format(product_latest_version['Id']))
             logging.info("product_latest_version_name: {}".format(product_latest_version['Name']))
             if product_conf.get('Version'):
@@ -336,6 +346,7 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
         product_dict = create_product(conn['service_catalog_client'], product_conf, s3_url)
         # associate the product with portfolio
         attach_product_to_portfolio(conn['service_catalog_client'], product_dict['product_id'], portfolio_id)
+
 
 
 def main(args):
