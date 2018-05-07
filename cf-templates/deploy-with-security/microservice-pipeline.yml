@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Pipeline to deploy microservice to ecs with a security scan step before deployment
+Description: AWS DevOps Springboard - Pipeline to deploy microservice to ecs with a security scan step before deployment
 
 Parameters:
   LZStackPrefix:
@@ -96,6 +96,7 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - !Ref UserTaskIamPolicy
+
 
   AnchoreEngineUser:
     Type: AWS::IAM::User
@@ -466,6 +467,7 @@ Resources:
           phases:
             pre_build:
               commands:
+
                 - apt-get update
                 - apt-get install -y python-pip jq
                 - pip install anchorecli
@@ -511,7 +513,7 @@ Resources:
 
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        Image: "aws/codebuild/docker:17.09.0"
+        Image: "anchore/anchore-engine:latest"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
@@ -542,8 +544,10 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
+
           - Name: ANCHORE_USER
             Value: !Ref AnchoreEngineUser
+
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline

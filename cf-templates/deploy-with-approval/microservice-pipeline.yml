@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Pipeline to deploy microservice to ecs with manual approval step before deployment
+Description: AWS DevOps Springboard - Pipeline to deploy microservice to ecs with manual approval step before deployment
 
 Parameters:
   LZStackPrefix:
@@ -261,7 +261,7 @@ Resources:
               commands:
                 - docker push "${REPOSITORY_URI}:${TAG}"
                 - printf '{"tag":"%s"}' $TAG > build.json
-                - aws s3 cp  s3://${TEMPLATE_BUCKET}/admin/ecs-workshop-service/cf-templates/common/microservice.yml .
+                - aws s3 cp  s3://${TEMPLATE_BUCKET}/cf-templates/common/microservice.yml .
           artifacts:
             files:
               - build.json
