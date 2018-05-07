@@ -97,13 +97,6 @@ Resources:
       ManagedPolicyArns:
         - !Ref UserTaskIamPolicy
 
-
-  AnchoreEngineUser:
-    Type: AWS::IAM::User
-    Properties:
-      ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-
   AnchoreTestIAMRole:
     Type: AWS::IAM::Role
     Properties:
@@ -118,19 +111,8 @@ Resources:
       ManagedPolicyArns:
         - !Ref CodeBuildStandardPolicy
         - !Ref UserTaskIamPolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
       Policies:
-        -
-          PolicyName: AnchoreUserPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-            - Sid: CreateCreds
-              Effect: Allow
-              Action:
-                - iam:CreateAccessKey
-                - iam:DeleteAccessKey
-              Resource:
-                - !GetAtt AnchoreEngineUser.Arn
         -
           PolicyName: S3SSMAccessPolicy
           PolicyDocument:
@@ -467,39 +449,31 @@ Resources:
           phases:
             pre_build:
               commands:
-
-                - apt-get update
-                - apt-get install -y python-pip jq
-                - pip install anchorecli
-                - mkdir -p /root/aevolume/config
+                - pip install --upgrade boto3 awscli anchorecli
+                - yum -y update && yum -y install epel-release && yum -y install gettext
+                - mkdir -p /config
                 - aws s3 cp  s3://${TEMPLATE_BUCKET}/cf-templates/deploy-with-security/config.template.yaml .
-                - aws --output json iam create-access-key --user-name ${ANCHORE_USER} > access_keys.json
+                - yum -y install jq
+
 
             build:
               commands:
-                - ACCESS_KEY_ID=$(jq -r .AccessKey.AccessKeyId access_keys.json)
-                - SECRET_ACCESS_KEY=$(jq -r .AccessKey.SecretAccessKey access_keys.json)
+                - PATH=/usr/local/bin:$PATH
                 - export TAG=`cat ${BUILD_JSON} | sed -e 's/{"tag":"\(.*\)"}/\1/g'`
                 - echo Testing $REPOSITORY_NAME:$TAG
-                - echo Run Anchore Engine
-                - docker pull docker.io/anchore/anchore-engine:v0.2.1
                 - echo $AWS_DEFAULT_REGION $PASSWORD_PARAM_STORE
                 - export DB_PASSWORD=$(aws --region $AWS_DEFAULT_REGION ssm get-parameters --name $PASSWORD_PARAM_STORE --with-decryption --output text |  cut -f 4)
-                - envsubst < "config.template.yaml" > "/root/aevolume/config/config.yaml"
-                - cat /root/aevolume/config/config.yaml
-                - docker run --privileged --network host -d --name anchore -p 8228:8228 -p 8338:8338 -v /root/aevolume/config:/config/:Z docker.io/anchore/anchore-engine:v0.2.1
-                - sleep 30
-                - docker ps -a
-                - docker logs anchore
+                - envsubst < "config.template.yaml" > "/config/config.yaml"
+                - /usr/bin/anchore-engine > /var/log/anchore.out 2>&1 &
                 - sleep 30
                 - echo $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
                 - echo $REPOSITORY_URI:$TAG
+                - sleep 30
                 - anchore-cli --u admin --p foobar registry del $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-                - #anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com $ACCESS_KEY_ID $SECRET_ACCESS_KEY --registry-type=awsecr
                 - anchore-cli --u admin --p foobar registry add $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com awsauto awsauto --registry-type=awsecr
                 - anchore-cli --u admin --p foobar registry list
                 - anchore-cli --u admin --p foobar image add $REPOSITORY_URI:$TAG
-                - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; sleep 10; docker logs anchore; done;
+                - until anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep "Status:";do echo "Checking again"; tail -n 300 /var/log/anchore.out; sleep 10; done;
                 - result=$(anchore-cli --u admin --p foobar evaluate check ${REPOSITORY_URI}:${TAG}|grep Status)
                 - echo $result
                 - test_result=`echo $result | cut -d " " -f 2`
@@ -508,8 +482,6 @@ Resources:
             post_build:
               commands:
                 - echo Anchore completed at `date`
-                - ACCESS_KEY_ID=$(jq -r .AccessKey.AccessKeyId access_keys.json)
-                - aws --output json iam delete-access-key --access-key $ACCESS_KEY_ID --user-name ${ANCHORE_USER}
 
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
@@ -544,10 +516,6 @@ Resources:
           - Name: TEMPLATE_BUCKET
             Value:
               Fn::ImportValue: !Sub ${LZStackPrefix}-service-template-bucket
-
-          - Name: ANCHORE_USER
-            Value: !Ref AnchoreEngineUser
-
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
