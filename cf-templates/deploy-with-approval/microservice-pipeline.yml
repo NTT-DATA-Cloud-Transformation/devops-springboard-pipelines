@@ -356,7 +356,7 @@ Resources:
   PipelineSNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: "Landing Zone Notifications"
+      DisplayName: !Sub "${ServiceName} Pipeline Notifications"
       Subscription:
         - Endpoint: !Ref NotifyEmail
           Protocol: email
