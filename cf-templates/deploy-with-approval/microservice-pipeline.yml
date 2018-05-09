@@ -31,6 +31,9 @@ Parameters:
   ApproverEmail:
     Description: Email id to send approval notification
     Type: String
+  NotifyEmail:
+    Type: String
+    Description: Notification email for pipeine failures
 
 Resources:
   ApprovalSNSTopic:
@@ -349,6 +352,65 @@ Resources:
             Value: !Sub ${Repository}
           - Name: BUILD_JSON
             Value: build.json
+
+  PipelineSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${ServiceName} Pipeline Notifications"
+      Subscription:
+        - Endpoint: !Ref NotifyEmail
+          Protocol: email
+
+  PiplineCloudwatchRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Cloudwatch events rule to detect pipeline failures"
+      State: "ENABLED"
+      EventPattern:
+        source:
+        - "aws.codepipeline"
+        detail-type:
+        - "CodePipeline Action Execution State Change"
+        detail:
+          state:
+            - "FAILED"
+          pipeline:
+            - !Ref Pipeline
+          action:
+            - FetchFromRepo
+            - CustomBuild
+            - ContainerBuild
+            - CustomCodeTest
+            - ContainerTest
+            - CreateChangeset
+            - GetApproval
+            - ServiceDeploy
+      Targets:
+      - Arn: !Ref PipelineSNSTopic
+        Id: PipelineNoticationSNS
+        InputTransformer:
+          InputPathsMap:
+            pipeline: $.detail.pipeline
+            action: $.detail.action
+          InputTemplate: !Sub '"Action <action> has failed within the pipeline <pipeline>"'
+    DependsOn: PipelineSNSTopicPolicy
+
+  PipelineSNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyTopicPolicy
+        Version: '2012-10-17'
+        Statement:
+        - Sid: TrustCWEToPublishEventsToMyTopic
+          Effect: Allow
+          Principal:
+            Service: "events.amazonaws.com"
+          Action: sns:Publish
+          Resource: !Ref PipelineSNSTopic
+      Topics:
+      - !Ref PipelineSNSTopic
+
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -364,7 +426,7 @@ Resources:
           Name: Source
           Actions:
             -
-              Name: AppRepoSource
+              Name: FetchFromRepo
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
@@ -379,10 +441,10 @@ Resources:
                 - Name: GitHubArtifact
               RunOrder: '1'
         -
-          Name: ContainerBuild
+          Name: Build
           Actions:
             -
-              Name: CustomCodeBuild
+              Name: CustomBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -405,7 +467,7 @@ Resources:
               OutputArtifacts: [Name: 'BuildOutput']
               RunOrder: 2
         -
-          Name: ContainerTest
+          Name: Test
           Actions:
             -
               Name: CustomCodeTest
@@ -430,7 +492,7 @@ Resources:
               InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
         -
-          Name: ServiceDeploy
+          Name: Deploy
           Actions:
             -
               Name: CreateChangeset
@@ -473,7 +535,7 @@ Resources:
                 NotificationArn: !Ref ApprovalSNSTopic
                 CustomData: "Please review the latest changes and approve/disapprove accordingly"
             -
-              Name: Deploy
+              Name: ServiceDeploy
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
