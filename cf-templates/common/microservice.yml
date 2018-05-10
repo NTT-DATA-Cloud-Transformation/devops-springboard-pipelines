@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template for microservies being deployed'
+Description: 'AWS DevOps Springboard - Sample ECS Microservice Application'
 Parameters:
   ContainerRepository:
     Description: Repository for getting the container
