@@ -1,7 +1,7 @@
 # Overview
 This repository contains examples for service deployment pipelines. These pipelines are deployed as service catalog products. 
 
-Currently, there are 3 flavors of deployment pipelines in the repository, ***[devops-springboard-pipeline_**s](https://github.com/Flux7Labs/devops-springboard-pipelines)*** and these are provided to the end user as [ServiceCatalog](https://aws.amazon.com/servicecatalog/) products. They are:
+Currently, there are 3 flavors of deployment pipelines in the repository, ***[devops-springboard-pipelines](https://github.com/Flux7Labs/devops-springboard-pipelines)*** and these are provided to the end user as [ServiceCatalog](https://aws.amazon.com/servicecatalog/) products. They are:
 
 1. **_deploy-pipeline-simple_** - This is a simple pipeline. The stages of this pipeline are as shown in the following diagram.
 
