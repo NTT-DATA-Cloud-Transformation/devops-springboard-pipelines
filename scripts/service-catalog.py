@@ -161,7 +161,7 @@ def attach_product_to_portfolio(client, product_id, portfolio_id):
     :param portfolio_id:
     :return:
     """
-    ##associate product with given portfolio
+    # associate product with given portfolio
     try:
         client.associate_product_with_portfolio(
             ProductId=product_id,
@@ -265,6 +265,58 @@ def create_connections():
     return conn
 
 
+def get_template_constraint(file_path):
+    """
+    replaces the env variables with actual values
+    :param file_path:
+    :return:
+    """
+    with open(file_path, "r") as tc:
+        output = os.path.expandvars(tc.read())
+
+    return output
+
+
+def create_update_constraint(portfolio_id, product_id, constraint_conf):
+    """
+
+    :param portfolio_id:
+    :param product_id:
+    :param constraint_conf:
+    :return:
+    """
+    conn = create_connections()
+    client = conn['service_catalog_client']
+    paginator = client.get_paginator('list_constraints_for_portfolio')
+    response_iterator = paginator.paginate(
+        PortfolioId=portfolio_id,
+        ProductId=product_id
+    )
+    found = False
+    for response in response_iterator:
+        constraint_details = response['ConstraintDetails']
+
+        for constraint_detail in constraint_details:
+            if constraint_detail['Description'] == constraint_conf['Description']:
+                constraint_id = constraint_conf['ConstraintId']
+                # delete constraint
+                conn['service_catalog_client'].delete_constraint(Id=constraint_id)
+                found = True
+                break
+        if found:
+            break
+    # Create Constraint
+    if constraint_conf['Type'] == "TEMPLATE:":
+        conn['service_catalog_client'].create_constraint(
+            PortfolioId=portfolio_id,
+            ProductId=product_id,
+            Parameters=get_template_constraint(constraint_conf['ParametersPath']),
+            Type=constraint_conf['Type'],
+            Description=constraint_conf['Description']
+        )
+    return
+
+
 def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
     """
     Create or Update service catalog product and associate it with the given portfolio
@@ -342,8 +394,18 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
         )
         product_dict = create_product(conn['service_catalog_client'], product_conf, s3_url)
         # associate the product with portfolio
-        attach_product_to_portfolio(conn['service_catalog_client'], product_dict['product_id'], portfolio_id)
-
+        product_id = product_dict['product_id']
+        attach_product_to_portfolio(conn['service_catalog_client'], product_id, portfolio_id)
+        # Add launch Constraint
+        conn['service_catalog_client'].create_constraint(
+            PortfolioId=portfolio_id,
+            ProductId=product_id,
+            Parameters='"RoleArn" : "{0}"'.format(os.environ['LAUNCH_CONSTRAINT_ROLE_ARN']),
+            Type="LAUNCH"
+        )
+    # Create/Update constraint on the product
+    for constraint in product_conf['Constriants']:
+        create_update_constraint(portfolio_id, product_id, constraint)
 
 
 def main(args):

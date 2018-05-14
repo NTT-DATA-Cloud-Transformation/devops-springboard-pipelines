@@ -15,6 +15,10 @@ Portfolios:
         Version:
           Name: v1.0
           Description: Update template description
+        Constriants:
+        - Description: "LZStackPrefix"
+          Type: TEMPLATE
+          ParametersPath: cf-templates/deploy-simple/template_constriants.template.json
       -
         Name: deploy-pipeline-with-approval
         TemplatePath: cf-templates/deploy-with-approval/microservice-pipeline.yml
@@ -26,6 +30,11 @@ Portfolios:
         #Version:
         #  Name: v1.0
         #  Description: Initial Version
+        Constriants:
+        - Description: "LZStackPrefix"
+          Type: TEMPLATE
+          ParametersPath: cf-templates/deploy-with-approval/template_constriants.template.json
+
       -
         Name: deploy-pipeline-with-security
         TemplatePath: cf-templates/deploy-with-security/microservice-pipeline.yml
@@ -36,3 +45,7 @@ Portfolios:
         Version:
           Name: v1.0
           Description: Update template description
+        Constriants:
+        - Description: "LZStackPrefix"
+          Type: TEMPLATE
+          ParametersPath: cf-templates/deploy-with-decurity/template_constriants.template.json
