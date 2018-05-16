@@ -10,7 +10,7 @@ Parameters:
     Description: 'GitHub UserName'
     Type: 'String'
   GitRepo:
-    Description: 'URL for Git repo'
+    Description: 'Name of Github repo'
     Type: 'String'
   GitBranch:
     Description: 'Branch being deployed'
