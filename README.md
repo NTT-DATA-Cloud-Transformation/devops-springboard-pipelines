@@ -34,3 +34,4 @@ Currently, there are 3 flavors of deployment pipelines in the repository, ***[de
 The following diagram describes the stages of this pipeline.
 
    ![image alt deploy-pipeline-with-security](images/image_7.png)
+
