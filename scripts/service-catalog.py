@@ -4,6 +4,7 @@ import argparse
 import os
 import logging
 import yaml
+import json
 
 
 def upload_to_s3(s3_client, template_path, bucket_name, bucket_prefix,):
@@ -298,15 +299,17 @@ def create_update_constraint(portfolio_id, product_id, constraint_conf):
 
         for constraint_detail in constraint_details:
             if constraint_detail['Description'] == constraint_conf['Description']:
-                constraint_id = constraint_conf['ConstraintId']
+                constraint_id = constraint_detail['ConstraintId']
                 # delete constraint
                 conn['service_catalog_client'].delete_constraint(Id=constraint_id)
                 found = True
                 break
         if found:
             break
-    # Create Constraint
-    if constraint_conf['Type'] == "TEMPLATE:":
+    if constraint_conf['Type'] == "TEMPLATE":
+        # Create Constraint
+        logging.info("Creating template constraint {0} for product {1} and portfolio {2}".format(
+            constraint_conf['Description'], product_id, portfolio_id))
         conn['service_catalog_client'].create_constraint(
             PortfolioId=portfolio_id,
             ProductId=product_id,
@@ -400,11 +403,14 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
         conn['service_catalog_client'].create_constraint(
             PortfolioId=portfolio_id,
             ProductId=product_id,
-            Parameters='"RoleArn" : "{0}"'.format(os.environ['LAUNCH_CONSTRAINT_ROLE_ARN']),
-            Type="LAUNCH"
+            Parameters=json.dumps({"RoleArn": os.environ['LAUNCH_CONSTRAINT_ROLE_ARN']}),
+            Type="LAUNCH",
+            Description="Launch constraint to restrict IAM permissions"
         )
     # Create/Update constraint on the product
-    for constraint in product_conf['Constriants']:
+    print "Template constraints", product_conf['Constraints']
+    for constraint in product_conf['Constraints']:
+        print constraint
         create_update_constraint(portfolio_id, product_id, constraint)
 
 
