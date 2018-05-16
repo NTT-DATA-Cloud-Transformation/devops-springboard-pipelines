@@ -1,0 +1,19 @@
+{
+  "Rules": {
+    "Rule1": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              "${LZ_STACK_PREFIX}",
+              {
+                "Ref": "LZStackPrefix"
+              }
+            ]
+          },
+          "AssertDescription": "LZStackPrefix should be equal to '${LZ_STACK_PREFIX}' - same as the StackPrefix used while creating landing zone stacks"
+        }
+      ]
+    }
+  }
+}
