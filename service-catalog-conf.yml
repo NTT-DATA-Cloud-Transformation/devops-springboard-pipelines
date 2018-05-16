@@ -18,7 +18,7 @@ Portfolios:
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
-          ParametersPath: cf-templates/deploy-simple/template_constriants.template.json
+          ParametersPath: cf-templates/deploy-simple/template_constraints.template.json
       -
         Name: deploy-pipeline-with-approval
         TemplatePath: cf-templates/deploy-with-approval/microservice-pipeline.yml
@@ -33,7 +33,7 @@ Portfolios:
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
-          ParametersPath: cf-templates/deploy-with-approval/template_constriants.template.json
+          ParametersPath: cf-templates/deploy-with-approval/template_constraints.template.json
 
       -
         Name: deploy-pipeline-with-security
@@ -48,4 +48,4 @@ Portfolios:
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
-          ParametersPath: cf-templates/deploy-with-security/template_constriants.template.json
+          ParametersPath: cf-templates/deploy-with-security/template_constraints.template.json
