@@ -19,9 +19,6 @@ Parameters:
     Description: 'OAuth Token for repo access'
     Type: 'String'
     NoEcho: true
-  ListenerPriority:
-    Description: 'Priority in ALB'
-    Type: Number
   NotifyEmail:
     Type: String
     Description: Notification email for pipeine failures
@@ -701,7 +698,6 @@ Resources:
                     "ContainerName": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": "2",
-                    "ListenerPriority": "${ListenerPriority}",
                     "ListenerPath": "${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitBranch}/${CleanRepoParams.lambdaGitRepo}",
                     "LZStackPrefix": "${LZStackPrefix}",
                     "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
