@@ -514,7 +514,7 @@ Resources:
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
                 StackName: !Sub deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
-                ChangeSetName: !Sub Deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-with-approval-${LZStackPrefix}
+                ChangeSetName: !Sub Deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-with-approval-${LZStackPrefix}
                 TemplatePath:  BuildOutput::microservice.yml
                 ParameterOverrides: !Sub |
                   {
