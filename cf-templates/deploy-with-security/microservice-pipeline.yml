@@ -271,7 +271,7 @@ Resources:
                 -
                   RESOURCES_BUCKET:
                     Fn::ImportValue: !Sub ${LZStackPrefix}-service-resource-bucket
-                  SERVICE_NAME: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}
+                  SERVICE_NAME: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
           -
             Sid: ListBucket
             Effect: Allow
@@ -290,12 +290,12 @@ Resources:
   Repository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}
+      RepositoryName: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
   CustomBuildProject:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and run ./buildspec.yml'
-      Name: !Sub custom-build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+      Name: !Sub custom-build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref CustomBuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -320,7 +320,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and push to ECR at ${Repository}'
-      Name: !Sub build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+      Name: !Sub build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -361,7 +361,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and run any custom tests'
-      Name: !Sub custom-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+      Name: !Sub custom-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -388,7 +388,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and check response on port 80'
-      Name: !Sub test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+      Name: !Sub test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -438,7 +438,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and check anchore gate'
-      Name: !Sub anchore-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+      Name: !Sub anchore-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !GetAtt AnchoreTestIAMRole.Arn
       TimeoutInMinutes: 300
       VpcConfig:
@@ -530,7 +530,7 @@ Resources:
   PipelineSNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Sub "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo} Pipeline Notifications"
+      DisplayName: !Sub "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch} Pipeline Notifications"
       Subscription:
         - Endpoint: !Ref NotifyEmail
           Protocol: email
@@ -587,7 +587,7 @@ Resources:
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-pipeline
+      Name: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-pipeline
       RestartExecutionOnUpdate: true
       ArtifactStore:
         Location:
@@ -624,7 +624,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub custom-build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+                ProjectName: !Sub custom-build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               RunOrder: 1
             -
@@ -635,7 +635,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+                ProjectName: !Sub build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
               RunOrder: 3
@@ -650,7 +650,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub custom-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+                ProjectName: !Sub custom-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
               InputArtifacts: [Name: 'GitHubArtifact']
               RunOrder: 1
             -
@@ -661,7 +661,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+                ProjectName: !Sub test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
               InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
             -
@@ -672,7 +672,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub anchore-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-container
+                ProjectName: !Sub anchore-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
               InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
         -
@@ -686,7 +686,7 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: !Sub Deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-Vanilla-On-${LZStackPrefix}
+                ChangeSetName: !Sub Deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-Vanilla-On-${LZStackPrefix}
                 ActionMode: CREATE_UPDATE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
@@ -697,8 +697,8 @@ Resources:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
                 ParameterOverrides: !Sub |
                   {
-                    "ContainerRepository": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}",
-                    "ContainerName": "${CleanRepoParams.lambdaGitRepo}",
+                    "ContainerRepository": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
+                    "ContainerName": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": "2",
                     "ListenerPriority": "${ListenerPriority}",
