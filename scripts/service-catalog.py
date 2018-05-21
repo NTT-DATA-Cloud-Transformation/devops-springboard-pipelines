@@ -197,7 +197,7 @@ def compare_templates(conn, template_url, product_conf):
 
     logging.debug("difference: {}".format(difference))
     if difference == diff_set:
-        logging.warn("No difference found in the templates")
+        logging.warn("No difference found in the templates for product {0}".format(product_conf['Name']))
         return False
     else:
         logging.debug("status: {}".format(True))
