@@ -384,7 +384,7 @@ Resources:
                     "ContainerName": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": "1",
-                    "ListenerPath": "${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitBranch}/${CleanRepoParams.lambdaGitRepo}",
+                    "ListenerPath": "${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitRepo}/${CleanRepoParams.lambdaGitBranch}",
                     "LZStackPrefix": "${LZStackPrefix}"
                   }
               InputArtifacts: [Name: 'BuildOutput']

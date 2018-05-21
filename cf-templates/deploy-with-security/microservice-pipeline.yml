@@ -698,7 +698,7 @@ Resources:
                     "ContainerName": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": "2",
-                    "ListenerPath": "${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitBranch}/${CleanRepoParams.lambdaGitRepo}",
+                    "ListenerPath": "${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitRepo}/${CleanRepoParams.lambdaGitBranch}",
                     "LZStackPrefix": "${LZStackPrefix}",
                     "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
                   }
