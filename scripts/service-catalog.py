@@ -357,36 +357,27 @@ def create_update_product(product_conf, portfolio_id, bucket_name, bucket_path):
 
             logging.info("product_latest_version_id: {}".format(product_latest_version['Id']))
             logging.info("product_latest_version_name: {}".format(product_latest_version['Name']))
-            if product_conf.get('Version'):
-                version = product_conf.get('Version').get('Name')
-                description = product_conf.get('Version').get('Description', '')
-                if version == product_latest_version['Name']:
-                    # Do not update the template
-                    logging.info("product {0} has not been updated".format(product_conf['Name']))
+            # Get latest template for that product
+            template_latest = get_latest_version_template_from_product(
+                conn['service_catalog_client'], product_latest_version['Id'], product_id)
+            comp_status = compare_templates(conn, template_latest, product_conf)
+            if comp_status:
+                if product_conf.get('Version'):
+                    version = product_conf.get('Version').get('Name')
+                    description = product_conf.get('Version').get('Description', '')
                 else:
-                    # Update the product
-                    s3_url = upload_to_s3(
-                        conn['s3_client'],
-                        product_conf['TemplatePath'], bucket_name, bucket_path
-                    )
-                    create_version_of_product(
-                        conn, version, s3_url, product_id, product_name, description=description)
-
-            else:
-                # Get latest template for that product
-                template_latest = get_latest_version_template_from_product(
-                    conn['service_catalog_client'], product_latest_version['Id'], product_id)
-                comp_status = compare_templates(conn, template_latest, product_conf)
-                if comp_status:
                     version = get_codebuild_version()
-                    logging.info(version)
-                    # upload new template to bucket for new version
-                    s3_url = upload_to_s3(
-                        conn['s3_client'],
-                        product_conf['TemplatePath'], bucket_name, bucket_path
-                    )
-                    create_version_of_product(
-                        conn, version, s3_url, product_id, product_name)
+                    description = ""
+                logging.info("Product Version Name: {0}".format(version))
+                # upload new template to bucket for new version
+                s3_url = upload_to_s3(
+                    conn['s3_client'],
+                    product_conf['TemplatePath'], bucket_name, bucket_path
+                )
+                create_version_of_product(
+                    conn, version, s3_url, product_id, product_name, description=description)
+            else:
+                logging.info("Product {0} has not changed. No new version uploaded".format(product_name))
 
             break
     else:
