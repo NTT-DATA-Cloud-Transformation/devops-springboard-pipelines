@@ -460,7 +460,7 @@ Resources:
             pre_build:
               commands:
                 - pip install --upgrade boto3 awscli anchorecli
-                - yum -y update && yum -y install epel-release && yum -y install gettext
+                - yum -y install epel-release && yum -y install gettext
                 - mkdir -p /config
                 - aws s3 cp  s3://${TEMPLATE_BUCKET}/cf-templates/deploy-with-security/config.template.yaml .
                 - yum -y install jq
