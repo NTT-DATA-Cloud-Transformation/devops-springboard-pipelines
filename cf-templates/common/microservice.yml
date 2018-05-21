@@ -15,9 +15,6 @@ Parameters:
     Description: Number of tasks to deploy
     Type: Number
     Default: 1
-  ListenerPriority:
-    Description: The priority of the path
-    Type: String
   LZStackPrefix:
     Description: Stack prefix to read parameters from landing zone stack
     Type: String
@@ -40,6 +37,14 @@ Conditions:
       - "us-east-1"
 
 Resources:
+  CustomListenerPriority:
+    Type: Custom::ListenerPriority
+    Properties:
+      ServiceToken: 
+        Fn::ImportValue: !Sub ${LZStackPrefix}-lambda-listener-priority
+      StackName: !Sub ${AWS::StackName}
+      version: '1.0'
+
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -54,7 +59,7 @@ Resources:
     Properties:
       ListenerArn:
         Fn::ImportValue: !Sub ${LZStackPrefix}-lb-listener
-      Priority: !Ref ListenerPriority
+      Priority: !Sub ${CustomListenerPriority.priority}
       Conditions:
         - Field: path-pattern
           Values:
