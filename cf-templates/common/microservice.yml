@@ -144,3 +144,7 @@ Resources:
                 Fn::ImportValue: !Sub ${LZStackPrefix}-lb-dns
           Cpu: 10
 
+Outputs:
+  ListenerPath:
+    Description: Context Path for the service
+    Value: !Ref ListenerPath
