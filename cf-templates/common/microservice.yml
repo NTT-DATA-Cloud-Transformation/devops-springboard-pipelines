@@ -147,4 +147,4 @@ Resources:
 Outputs:
   ListenerPath:
     Description: Context Path for the service
-    Value: !Ref ListenerPath
+    Value: !Sub "/${ListenerPath}/"
