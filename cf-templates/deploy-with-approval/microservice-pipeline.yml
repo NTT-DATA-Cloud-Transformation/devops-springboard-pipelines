@@ -223,7 +223,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and run ./buildspec.yml'
-      Name: !Sub custom-build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+      Name: !Sub custom-build-approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref CustomBuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -249,7 +249,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub 'Checkout code from ${GitHubUser}/${GitRepo} and push to ECR at ${Repository}'
-      Name: !Sub build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+      Name: !Sub build-approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -291,7 +291,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and run any custom tests'
-      Name: !Sub custom-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+      Name: !Sub custom-test-approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -319,7 +319,7 @@ Resources:
     Type: "AWS::CodeBuild::Project"
     Properties:
       Description: !Sub '$Checkout container from ${Repository} and check response on port 80'
-      Name: !Sub test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+      Name: !Sub test-approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
       ServiceRole: !Ref BuildIamRole
       Artifacts:
         Type: CODEPIPELINE
@@ -361,7 +361,7 @@ Resources:
   PipelineSNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Sub "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch} Pipeline Notifications"
+      DisplayName: !Sub "Pipeline With Approval Notifications ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}"
       Subscription:
         - Endpoint: !Ref NotifyEmail
           Protocol: email
@@ -419,7 +419,7 @@ Resources:
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-pipeline
+      Name: !Sub approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-pipeline
       RestartExecutionOnUpdate: true
       ArtifactStore:
         Location:
@@ -456,7 +456,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub custom-build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+                ProjectName: !Ref CustomBuildProject
               InputArtifacts: [Name: 'GitHubArtifact']
               RunOrder: 1
             -
@@ -467,7 +467,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub build-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+                ProjectName: !Ref BuildProject
               InputArtifacts: [Name: 'GitHubArtifact']
               OutputArtifacts: [Name: 'BuildOutput']
               RunOrder: 2
@@ -482,7 +482,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub custom-test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+                ProjectName: !Ref CustomTestProject
               InputArtifacts: [Name: 'GitHubArtifact']
               RunOrder: 1
             -
@@ -493,7 +493,7 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Sub test-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-container
+                ProjectName: !Ref TestProject
               InputArtifacts: [Name: 'BuildOutput']
               RunOrder: 1
         -
@@ -518,8 +518,8 @@ Resources:
                 TemplatePath:  BuildOutput::microservice.yml
                 ParameterOverrides: !Sub |
                   {
-                    "ContainerRepository": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
-                    "ContainerName": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
+                    "ContainerRepository": "${Repository}",
+                    "ContainerName": "approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": "2",
                     "ListenerPath": "approval/${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitRepo}/${CleanRepoParams.lambdaGitBranch}",
@@ -564,3 +564,7 @@ Outputs:
       - LBDNS:
           Fn::ImportValue:
             !Sub ${LZStackPrefix}-lb-dns
+  PipelineUrl:
+    Description: Url to access the Deployment Pipeline
+    Value:
+      !Sub "https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}"
