@@ -53,6 +53,9 @@ Resources:
       Port: 80
       Protocol: HTTP
       TargetType: !If [ Fargate, "ip", "instance" ]
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: 30
 
   ListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -90,6 +93,9 @@ Resources:
       Cluster:
         Fn::ImportValue: !Sub ${LZStackPrefix}-cluster-name
       DesiredCount: !Ref DesiredCount
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
       TaskDefinition: !Ref TaskDefinition
       LaunchType: !If [ Fargate, "FARGATE", "EC2" ]
       NetworkConfiguration:
