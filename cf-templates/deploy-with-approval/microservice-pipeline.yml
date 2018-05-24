@@ -513,7 +513,7 @@ Resources:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
+                StackName: !Sub deploy-approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
                 ChangeSetName: !Sub Deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}-with-approval-${LZStackPrefix}
                 TemplatePath:  BuildOutput::microservice.yml
                 ParameterOverrides: !Sub |
@@ -551,7 +551,7 @@ Resources:
                 ActionMode: CHANGE_SET_EXECUTE
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
-                StackName: !Sub deploy-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
+                StackName: !Sub deploy-approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
                 Capabilities: CAPABILITY_NAMED_IAM
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
