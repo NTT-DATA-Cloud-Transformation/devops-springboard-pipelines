@@ -13,8 +13,8 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v1.2
-          Description: Update stack name
+          Name: v1.3
+          Description: Update ECR repository name
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
@@ -28,8 +28,8 @@ Portfolios:
         Owner: Flux7
         ## If version is not present, then version name is constructed from the environment variable CODEBUILD_RESOLVED_SOURCE_VERSION
         Version:
-          Name: v1.2
-          Description: Update stack name
+          Name: v1.3
+          Description: Update ECR repository name
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
@@ -43,8 +43,8 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v1.2
-          Description: Update stack name
+          Name: v1.3
+          Description: Update ECR repository name
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE

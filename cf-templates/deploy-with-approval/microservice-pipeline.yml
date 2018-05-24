@@ -217,7 +217,7 @@ Resources:
   Repository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
+      RepositoryName: !Sub approval-${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}
 
   CustomBuildProject:
     Type: "AWS::CodeBuild::Project"
