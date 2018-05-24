@@ -527,7 +527,7 @@ Resources:
   PipelineSNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Sub "Pipeline With Security Notifications${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch} "
+      DisplayName: !Sub "Pipeline With Security Notifications ${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch} "
       Subscription:
         - Endpoint: !Ref NotifyEmail
           Protocol: email
