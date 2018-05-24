@@ -13,8 +13,8 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v1.0
-          Description: Update template description
+          Name: v1.1
+          Description: Add service deployment endpoint
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
@@ -26,10 +26,10 @@ Portfolios:
         SupportEmail: support@flux7.com
         SupportUrl: http://www.flux7.com
         Owner: Flux7
-        ## In this case version name is constructed from the environment variable CODEBUILD_RESOLVED_SOURCE_VERSION
-        #Version:
-        #  Name: v1.0
-        #  Description: Initial Version
+        ## If version is not present, then version name is constructed from the environment variable CODEBUILD_RESOLVED_SOURCE_VERSION
+        Version:
+          Name: v1.1
+          Description: Add service deployment endpoint
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE
@@ -43,8 +43,8 @@ Portfolios:
         SupportUrl: http://www.flux7.com
         Owner: Flux7
         Version:
-          Name: v1.0
-          Description: Update template description
+          Name: v1.1
+          Description: Add service deployment endpoint
         Constraints:
         - Description: "LZStackPrefix"
           Type: TEMPLATE

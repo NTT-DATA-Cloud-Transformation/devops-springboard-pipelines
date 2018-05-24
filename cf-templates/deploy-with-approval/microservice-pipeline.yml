@@ -522,7 +522,7 @@ Resources:
                     "ContainerName": "${CleanRepoParams.lambdaGitUser}-${CleanRepoParams.lambdaGitRepo}-${CleanRepoParams.lambdaGitBranch}",
                     "ContainerTag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "DesiredCount": "2",
-                    "ListenerPath": "${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitRepo}/${CleanRepoParams.lambdaGitBranch}",
+                    "ListenerPath": "approval/${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitRepo}/${CleanRepoParams.lambdaGitBranch}",
                     "LZStackPrefix": "${LZStackPrefix}",
                     "TaskIamRoleArn": "${UserTaskIamRole.Arn}"
                   }
@@ -555,3 +555,12 @@ Resources:
                 Capabilities: CAPABILITY_NAMED_IAM
                 RoleArn:
                   Fn::ImportValue: !Sub ${LZStackPrefix}-cloudformation-role-arn
+Outputs:
+  ServiceEndpoint:
+    Description: Endpoint to access the service deployed through this pipeline
+    Value:
+      !Sub
+      - "http://${LBDNS}/approval/${CleanRepoParams.lambdaGitUser}/${CleanRepoParams.lambdaGitRepo}/${CleanRepoParams.lambdaGitBranch}/"
+      - LBDNS:
+          Fn::ImportValue:
+            !Sub ${LZStackPrefix}-lb-dns
